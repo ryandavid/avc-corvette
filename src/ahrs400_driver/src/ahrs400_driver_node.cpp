@@ -20,26 +20,21 @@ const int kDiagnosticPublishRateHz = 1;
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "ahrs400_driver_node");
-  ros::NodeHandle node;
+  ros::NodeHandle node("~");
 
   std::string inertial_topic_name;
   std::string magnetic_topic_name;
   std::string serial_port_name;
   int serial_port_baudrate;
 
-  inertial_topic_name = ros::this_node::getName() + "/inertial";
-  magnetic_topic_name = ros::this_node::getName() + "/magnetic";
-  node.param("serial_port_name", serial_port_name, std::string("/dev/ttyUSB0"));
-  node.param("serial_port_baudrate", serial_port_baudrate, 38400);
+  node.param("port", serial_port_name, std::string("/dev/ttyUSB0"));
+  node.param("baudrate", serial_port_baudrate, 38400);
 
   ROS_INFO("Node '%s'.", ros::this_node::getName().c_str());
-  ROS_INFO("Publishing measurements to '%s' and '%s'.",
-           inertial_topic_name.c_str(),
-           magnetic_topic_name.c_str());
   ROS_INFO("Using serial port '%s' at %d baud.", serial_port_name.c_str(), serial_port_baudrate);
 
-  ros::Publisher inertialTopic = node.advertise<sensor_msgs::Imu>(inertial_topic_name, 100);
-  ros::Publisher magneticTopic = node.advertise<sensor_msgs::MagneticField>(magnetic_topic_name, 100);
+  ros::Publisher inertialTopic = node.advertise<sensor_msgs::Imu>("inertial", 100);
+  ros::Publisher magneticTopic = node.advertise<sensor_msgs::MagneticField>("magnetic", 100);
   ros::Publisher diagnosticTopic = node.advertise<diagnostic_msgs::DiagnosticStatus>("/diagnostics", 10);
 
   xbow_ahrs400 ahrs(serial_port_name, serial_port_baudrate);

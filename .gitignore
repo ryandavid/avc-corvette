@@ -48,4 +48,4 @@ qtcreator-*
 CATKIN_IGNORE
 
 # Sensitive launch files
-ntrip_client.launch
+ntrip_client_password.launch

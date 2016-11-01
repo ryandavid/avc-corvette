@@ -1,0 +1,15 @@
+<launch>
+	<arg name="ntrip_server" />
+	<arg name="ntrip_port" />
+	<arg name="ntrip_mountpoint" />
+	<arg name="ntrip_username" />
+	<arg name="ntrip_password" />
+
+	<node pkg="ntrip_client" type="ntrip_client_node" name="ntrip">
+		<param name="server" type="str" value="$(arg ntrip_server)"/>
+		<param name="port" type="int" value="$(arg ntrip_port)"/>
+		<param name="mountpoint" type="str" value="$(arg ntrip_mountpoint)"/>
+		<param name="username" type="str" value="$(arg ntrip_username)"/>
+		<param name="password" type="str" value="$(arg ntrip_password)"/>
+	</node>
+</launch>

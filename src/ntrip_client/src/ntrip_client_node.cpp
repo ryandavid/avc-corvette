@@ -56,21 +56,6 @@
 static char revisionstr[] = "$Revision: 1.51 $";
 static char datestr[]     = "$Date: 2009/09/11 09:49:19 $";
 
-enum MODE { HTTP = 1, RTSP = 2, NTRIP1 = 3, AUTO = 4, UDP = 5, END };
-
-struct Args {
-  const char *server;
-  const char *port;
-  const char *user;
-  const char *password;
-  const char *data;
-  int         bitrate;
-  int         mode;
-};
-
-
-int stop = 0;
-
 static const char encodingTable [64] = {
   'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
   'Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f',
@@ -128,66 +113,67 @@ static int encode(char *buf, int size, const char *user, const char *pwd) {
 }
 
 int main(int argc, char **argv) {
-    struct Args args;
-
     int error = 0;
     int sockfd = 0;
-    int numbytes;
     char buf[MAXDATASIZE];
     struct sockaddr_in their_addr; /* connector's address information */
     struct hostent *he;
     struct servent *se;
     char *b;
     long i;
+    int numbytes = 0;
 
-    std::string server, port, username, password, mountpoint;
+    int port;
+    std::string server, port_string, username, password, mountpoint;
 
     ros::init(argc, argv, "ntrip_client_node");
     ros::NodeHandle node("~");
 
-    std::string data_topic_name = ros::this_node::getName() + "/data";
-    ros::Publisher dataTopic = node.advertise<std_msgs::ByteMultiArray>(data_topic_name, 100);
+    ros::Publisher dataTopic = node.advertise<std_msgs::ByteMultiArray>("data", 100);
 
     if(node.getParam("server", server) == true) {
         ROS_INFO("Server: %s", server.c_str());
     } else {
-        ROS_ERROR("Could not get param 'server'");
+        ROS_FATAL("Could not get param 'server'");
         return -1;
     }
 
     if(node.getParam("port", port) == true) {
-        ROS_INFO("Port: %s", port.c_str());
+        std::stringstream temp;
+        temp << port;
+        port_string = temp.str();
+        ROS_INFO("Port: %s", port_string.c_str());
     } else {
-        ROS_ERROR("Could not get param 'port'");
+        ROS_FATAL("Could not get param 'port'");
         return -1;
     }
 
     if(node.getParam("mountpoint", mountpoint) == true) {
         ROS_INFO("Mountpoint: %s", mountpoint.c_str());
     } else {
-        ROS_ERROR("Could not get param 'mountpoint'");
+        ROS_FATAL("Could not get param 'mountpoint'");
         return -1;
     }
 
     if(node.getParam("username", username) == true) {
         ROS_INFO("Username: %s", username.c_str());
     } else {
-        ROS_ERROR("Could not get param 'username'");
+        ROS_FATAL("Could not get param 'username'");
         return -1;
     }
 
     if(node.getParam("password", password) == true) {
         ROS_INFO("Password: *******");
     } else {
-        ROS_ERROR("Could not get param 'password'");
+        ROS_FATAL("Could not get param 'password'");
         return -1;
     }
 
     memset(&their_addr, 0, sizeof(struct sockaddr_in));
-    if((i = strtol(port.c_str(), &b, 10)) && (!b || !*b)) {
+    if((i = strtol(port_string.c_str(), &b, 10)) && (!b || !*b)) {
         their_addr.sin_port = htons(i);
-    } else if(!(se = getservbyname(port.c_str(), 0))) {
-        ROS_ERROR("Can't resolve port %s.", port.c_str());
+    } else if(!(se = getservbyname(port_string.c_str(), 0))) {
+        ROS_ERROR("Can't resolve port %s.", port_string.c_str());
         return -1;
     } else {
         their_addr.sin_port = se->s_port;
@@ -209,7 +195,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    i=snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
+    i = snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
         "GET /%s HTTP/1.1\r\n"
         "Host: %s\r\n%s"
         "User-Agent: %s/%s\r\n"
@@ -244,13 +230,10 @@ int main(int argc, char **argv) {
 
     int k = 0;
     int chunkymode = 0;
-    int starttime = time(0);
-    int lastout = starttime;
-    int totalbytes = 0;
     int chunksize = 0;
 
     ROS_INFO("Start NTRIP client.");
-    while(ros::ok() && !stop && !error && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0) {
+    while(ros::ok() && !error && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0) {
         if(!k) {
             buf[numbytes] = 0; /* latest end mark for strstr */
 
@@ -301,7 +284,7 @@ int main(int argc, char **argv) {
         int cstop = 0;
         int pos = 0;
         std_msgs::ByteMultiArray msg;
-        while(!stop && !cstop && !error && pos < numbytes) {
+        while(!cstop && !error && pos < numbytes) {
             switch(chunkymode) {
             case 1: /* reading number starts */
                 chunksize = 0;
@@ -326,7 +309,7 @@ int main(int argc, char **argv) {
                 if(buf[pos++] == '\n') {
                     chunkymode = chunksize ? 4 : 1;
                 } else {
-                    stop = 1;
+                    cstop = 1;
                 }
                 break;
             case 4: /* output data */
@@ -338,9 +321,6 @@ int main(int argc, char **argv) {
                 msg.data.insert(msg.data.end(), &(buf[pos]), &(buf[pos + i]));
                 dataTopic.publish(msg);
 
-                //fwrite(buf+pos, (size_t)i, 1, stdout);
-
-                totalbytes += i;
                 chunksize -= i;
                 pos += i;
                 if(!chunksize) {
@@ -358,21 +338,6 @@ int main(int argc, char **argv) {
         if(cstop) {
             ROS_ERROR("Error in chunky transfer encoding");
             error = 1;
-        }
-
-
-        /* overflow */
-        if(totalbytes < 0) {
-            totalbytes = 0;
-            starttime = time(0);
-            lastout = starttime;
-        }
-
-        int t = time(0);
-        if(t > lastout + 5) {
-            lastout = t;
-            ROS_INFO("Bitrate is %dbyte/s.",
-            totalbytes/(t - starttime));
         }
     }
 
