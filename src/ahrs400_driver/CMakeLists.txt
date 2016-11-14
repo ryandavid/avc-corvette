@@ -125,6 +125,11 @@ add_library(ahrs400_driver
    src/ahrs400_driver.cpp
 )
 
+target_link_libraries(ahrs400_driver
+  serial
+  ${catkin_LIBRARIES}
+)
+
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
