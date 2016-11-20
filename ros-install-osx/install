@@ -23,7 +23,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 ROS_DISTRO=${ROS_DISTRO:-kinetic}
-ROS_CONFIGURATION=${ROS_CONFIGURATION:-robot}
+ROS_CONFIGURATION=${ROS_CONFIGURATION:-desktop}
 ROS_EXTRA_PACKAGES=${ROS_EXTRA_PACKAGES:-}
 ROS_INSTALL_DIR=${ROS_INSTALL_DIR:-/opt/ros/${ROS_DISTRO}}
 
@@ -97,6 +97,10 @@ do_install()
 
   # ROS infrastructure tools
   brew install libyaml || true
+
+  # Make sure PyQt5 is installed for Python 2.x
+  brew reinstall pyqt5 --with-python --without-python3
+
   pip install -U setuptools rosdep rosinstall_generator wstool rosinstall catkin_tools bloom empy sphinx pycurl
 
   # Initialize and update rosdep
@@ -152,8 +156,14 @@ do_install()
     sudo chown $USER ${ROS_INSTALL_DIR}
   fi
 
+  # Hacky hack hack to disable QTKit (Quicktime) on macOS Sierra.
+  echo "set(HAVE_QTKIT NO)" >> src/opencv3/cmake/OpenCVFindLibsVideo.cmake
+
   # Parallel build.
-  catkin config --install  --install-space ${ROS_INSTALL_DIR} --cmake-args \
+  catkin config --install  --install-space ${ROS_INSTALL_DIR} \
+    --blacklist qt_gui_cpp rqt_gui_cpp nodelet_tutorial_math rqt_image_view rviz \
+    rviz_python_tutorial rviz_plugin_tutorials rqt_rviz librviz_tutorial \
+    --cmake-args \
     -DCATKIN_ENABLE_TESTING=1 \
     -DCMAKE_BUILD_TYPE=Release \
     -DPYTHON_LIBRARY=$(python -c "import sys; print sys.prefix")/lib/libpython2.7.dylib \
