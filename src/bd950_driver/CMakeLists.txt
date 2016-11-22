@@ -10,8 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
   std_msgs
-  serial
   message_generation
+  serial
 )
 
 ## System dependencies are found with CMake's conventions
@@ -128,15 +128,12 @@ add_library(bd950_driver
   src/bd950_driver.cpp
 )
 
-target_link_libraries(bd950_driver
-  serial
-  ${catkin_LIBRARIES}
-)
+target_link_libraries(bd950_driver ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(bd950_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(bd950_driver serial)
 
 ## Declare a C++ executable
 add_executable(bd950_driver_node src/bd950_driver_node.cpp)

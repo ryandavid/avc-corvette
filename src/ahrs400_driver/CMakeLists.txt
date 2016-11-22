@@ -125,10 +125,7 @@ add_library(ahrs400_driver
    src/ahrs400_driver.cpp
 )
 
-target_link_libraries(ahrs400_driver
-  serial
-  ${catkin_LIBRARIES}
-)
+target_link_libraries(ahrs400_driver ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -140,7 +137,7 @@ add_executable(ahrs400_driver_node src/ahrs400_driver_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(ahrs400_driver_node serial ahrs400_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(ahrs400_driver_node ahrs400_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ahrs400_driver_node

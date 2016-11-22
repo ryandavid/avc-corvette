@@ -1,7 +1,9 @@
 build/
+.catkin_tools/
 devel/
 bin/
 lib/
+logs/
 msg_gen/
 srv_gen/
 msg/*Action.msg
