@@ -13,6 +13,8 @@ bd950::bd950(const std::string& port, uint32_t baudrate) : _port(port, baudrate,
     numReceivedPackets = 0;
     numReceivedRecords = 0;
 
+    rxMsgs.clear();
+
     //queryReceiverInfo();
 }
 
@@ -56,7 +58,7 @@ int bd950::getRxRecords(){
     return numReceivedRecords;
 }
 
-bool bd950::rawDataAvailable(){
+bool bd950::process(){
     bool newDataAvailable = false;
     uint8_t rxData;
 
@@ -149,12 +151,45 @@ bool bd950::rawDataAvailable(){
 }
 
 
+float bd950::convertToFloat(std::vector<uint8_t> data, uint8_t starting_index) {
+    UN_FLOAT tempFloat;
+
+    tempFloat.bDat[0] = data.at(starting_index + 3);
+    tempFloat.bDat[1] = data.at(starting_index + 2);
+    tempFloat.bDat[2] = data.at(starting_index + 1);
+    tempFloat.bDat[3] = data.at(starting_index + 0);
+
+    return tempFloat.fData;
+}
+
+double bd950::convertToDouble(std::vector<uint8_t> data, uint8_t starting_index) {
+    UN_DOUBLE tempDouble;
+
+    tempDouble.bDat[0] = data.at(starting_index + 7);
+    tempDouble.bDat[1] = data.at(starting_index + 6);
+    tempDouble.bDat[2] = data.at(starting_index + 5);
+    tempDouble.bDat[3] = data.at(starting_index + 4);
+    tempDouble.bDat[4] = data.at(starting_index + 3);
+    tempDouble.bDat[5] = data.at(starting_index + 2);
+    tempDouble.bDat[6] = data.at(starting_index + 1);
+    tempDouble.bDat[7] = data.at(starting_index + 0);
+
+    return tempDouble.dData;
+}
+
+bool bd950::getBool(std::vector<uint8_t> data, uint8_t starting_index, uint8_t bit_index) {
+    uint8_t bitmask = 1 << bit_index;
+
+    return (data.at(starting_index) & bitmask) == bitmask;
+}
+
 void bd950::processPacket40(){
     int index = 0;
     gsof recordType;
     int recordLength;
     UN_DOUBLE tempDouble;
     UN_FLOAT tempFloat;
+    uint8_t numSv;
 
     uint8_t transmissionNumber = rxRecordData.at(0);
     uint8_t pageIndex = rxRecordData.at(1);
@@ -169,143 +204,78 @@ void bd950::processPacket40(){
         recordType = (gsof)rxRecordData.at(index);
         recordLength = rxRecordData.at(index+1);
 
+        if(recordLength > rxRecordData.size() - index) {
+            ROS_ERROR("Invalid message length!");
+            break;
+        }
+
         switch(recordType){
         case(PositionTime):
             ROS_DEBUG("PositionTime");
+            rxMsgs[PositionTime] = true;
             break;
 
         case(LLH):
             ROS_DEBUG("LLH");
-            tempDouble.bDat[0] = rxRecordData.at(index + 9) & 0xFF;
-            tempDouble.bDat[1] = rxRecordData.at(index + 8) & 0xFF;
-            tempDouble.bDat[2] = rxRecordData.at(index + 7) & 0xFF;
-            tempDouble.bDat[3] = rxRecordData.at(index + 6) & 0xFF;
-            tempDouble.bDat[4] = rxRecordData.at(index + 5) & 0xFF;
-            tempDouble.bDat[5] = rxRecordData.at(index + 4) & 0xFF;
-            tempDouble.bDat[6] = rxRecordData.at(index + 3) & 0xFF;
-            tempDouble.bDat[7] = rxRecordData.at(index + 2) & 0xFF;
-            llh.latitude = tempDouble.dData * 57.2957795f;  // TODO: Change to constant
-
-            tempDouble.bDat[0] = rxRecordData.at(index + 17) & 0xFF;
-            tempDouble.bDat[1] = rxRecordData.at(index + 16) & 0xFF;
-            tempDouble.bDat[2] = rxRecordData.at(index + 15) & 0xFF;
-            tempDouble.bDat[3] = rxRecordData.at(index + 14) & 0xFF;
-            tempDouble.bDat[4] = rxRecordData.at(index + 13) & 0xFF;
-            tempDouble.bDat[5] = rxRecordData.at(index + 12) & 0xFF;
-            tempDouble.bDat[6] = rxRecordData.at(index + 11) & 0xFF;
-            tempDouble.bDat[7] = rxRecordData.at(index + 10) & 0xFF;
-            llh.longitude = tempDouble.dData * 57.2957795f; // TODO: Change to constant
-
-            tempDouble.bDat[0] = rxRecordData.at(index + 25) & 0xFF;
-            tempDouble.bDat[1] = rxRecordData.at(index + 24) & 0xFF;
-            tempDouble.bDat[2] = rxRecordData.at(index + 23) & 0xFF;
-            tempDouble.bDat[3] = rxRecordData.at(index + 22) & 0xFF;
-            tempDouble.bDat[4] = rxRecordData.at(index + 21) & 0xFF;
-            tempDouble.bDat[5] = rxRecordData.at(index + 20) & 0xFF;
-            tempDouble.bDat[6] = rxRecordData.at(index + 19) & 0xFF;
-            tempDouble.bDat[7] = rxRecordData.at(index + 18) & 0xFF;
-            llh.height = tempDouble.dData;
+            llh.latitude = convertToDouble(rxRecordData, index + 2) * kRadianToDegrees;
+            llh.longitude = convertToDouble(rxRecordData, index + 10) * kRadianToDegrees;
+            llh.height = convertToDouble(rxRecordData, index + 18);
+            rxMsgs[LLH] = true;
             break;
 
         case(SVBrief):
             ROS_DEBUG("SVBrief");
-            svInfo[0].numSv = rxRecordData.at(index + 2) & 0xFF;
+            numSv = rxRecordData.at(index + 2) & 0xFF;
+            svInfo.resize(numSv);
 
-            for(int i = 0; i < svInfo[0].numSv; i++){
-                svInfo[i].numSv = svInfo[0].numSv;
+            for(int i = 0; i < numSv; i++){
                 svInfo[i].prn = rxRecordData.at( index + 3 + (i*3) ) & 0xFF;
 
-                svInfo[i].satelliteAboveHorizon = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00000001);
-                svInfo[i].assignedToChannel = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00000010);
-                svInfo[i].trackedL1 = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00000100);
-                svInfo[i].trackedL2 = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00001000);
-                svInfo[i].trackedAtBaseL1 = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00010000);
-                svInfo[i].trackedAtBaseL2 = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b00100000);
-                svInfo[i].usedInSolution = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b01000000);
-                svInfo[i].usedInRTK = (bool)( rxRecordData.at( index + 4 + (i*3)) & 0b10000000);
+                svInfo[i].satelliteAboveHorizon = getBool(rxRecordData, index + 4 + (i*3), 0);
+                svInfo[i].assignedToChannel = getBool(rxRecordData, index + 4 + (i*3), 1);
+                svInfo[i].trackedL1 = getBool(rxRecordData, index + 4 + (i*3), 2);
+                svInfo[i].trackedL2 = getBool(rxRecordData, index + 4 + (i*3), 3);
+                svInfo[i].trackedAtBaseL1 = getBool(rxRecordData, index + 4 + (i*3), 4);
+                svInfo[i].trackedAtBaseL2 = getBool(rxRecordData, index + 4 + (i*3), 5);
+                svInfo[i].usedInSolution = getBool(rxRecordData, index + 4 + (i*3), 6);
+                svInfo[i].usedInRTK = getBool(rxRecordData, index + 4 + (i*3), 7);
 
-                svInfo[i].trackedPcodeL1 = (bool)( rxRecordData.at( index + 5 + (i*3)) & 0b00000001);
-                svInfo[i].trackedPcodeL2 = (bool)( rxRecordData.at( index + 5 + (i*3)) & 0b00000010);
+                svInfo[i].trackedPcodeL1 = getBool(rxRecordData, index + 5 + (i*3), 0);
+                svInfo[i].trackedPcodeL2 = getBool(rxRecordData, index + 5 + (i*3), 1);
                 svInfo[i].elevation = 0;    // Not supported in this message
                 svInfo[i].azimuth = 0;      // Not supported in this message
                 svInfo[i].snrL1 = 0;        // Not supported in this message
                 svInfo[i].snrL2 = 0;        // Not supported in this message
             }
-
-            // Lets zero out the remaining SV info
-            for(int i = svInfo[0].numSv; i < 24; i++){
-                svInfo[i].numSv = 0;
-                svInfo[i].prn = 0;
-
-                svInfo[i].satelliteAboveHorizon = 0;
-                svInfo[i].assignedToChannel = 0;
-                svInfo[i].trackedL1 = 0;
-                svInfo[i].trackedL2 = 0;
-                svInfo[i].trackedAtBaseL1 = 0;
-                svInfo[i].trackedAtBaseL2 = 0;
-                svInfo[i].usedInSolution = 0;
-                svInfo[i].usedInRTK = 0;
-
-                svInfo[i].trackedPcodeL1 = 0;
-                svInfo[i].trackedPcodeL2 = 0;
-
-                svInfo[i].elevation = 0;
-                svInfo[i].azimuth = 0;
-                svInfo[i].snrL1 = 0;
-                svInfo[i].snrL2 = 0;
-            }
-
+            rxMsgs[SVBrief] = true;
             break;
 
         case(SVDetail):
             ROS_DEBUG("SVDetail");
-            svInfo[0].numSv = rxRecordData.at(index + 2) & 0xFF;
+            numSv = rxRecordData.at(index + 2) & 0xFF;
+            svInfo.resize(numSv);
 
-            for(int i = 0; i < svInfo[0].numSv; i++){
-                svInfo[i].numSv = svInfo[0].numSv;
+            for(int i = 0; i < numSv; i++){
                 svInfo[i].prn = rxRecordData.at( index + 3 + (i*8) ) & 0xFF;
 
-                svInfo[i].satelliteAboveHorizon = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00000001);
-                svInfo[i].assignedToChannel = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00000010);
-                svInfo[i].trackedL1 = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00000100);
-                svInfo[i].trackedL2 = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00001000);
-                svInfo[i].trackedAtBaseL1 = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00010000);
-                svInfo[i].trackedAtBaseL2 = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b00100000);
-                svInfo[i].usedInSolution = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b01000000);
-                svInfo[i].usedInRTK = (bool)( rxRecordData.at( index + 4 + (i*8)) & 0b10000000);
+                svInfo[i].satelliteAboveHorizon = getBool(rxRecordData, index + 4 + (i*8), 0);
+                svInfo[i].assignedToChannel = getBool(rxRecordData, index + 4 + (i*8), 1);
+                svInfo[i].trackedL1 = getBool(rxRecordData, index + 4 + (i*8), 2);
+                svInfo[i].trackedL2 = getBool(rxRecordData, index + 4 + (i*8), 3);
+                svInfo[i].trackedAtBaseL1 = getBool(rxRecordData, index + 4 + (i*8), 4);
+                svInfo[i].trackedAtBaseL2 = getBool(rxRecordData, index + 4 + (i*8), 5);
+                svInfo[i].usedInSolution = getBool(rxRecordData, index + 4 + (i*8), 6);
+                svInfo[i].usedInRTK = getBool(rxRecordData, index + 4 + (i*8), 7);
 
-                svInfo[i].trackedPcodeL1 = (bool)( rxRecordData.at( index + 5 + (i*8)) & 0b00000001);
-                svInfo[i].trackedPcodeL2 = (bool)( rxRecordData.at( index + 5 + (i*8)) & 0b00000010);
+                svInfo[i].trackedPcodeL1 = getBool(rxRecordData, index + 5 + (i*8), 0);
+                svInfo[i].trackedPcodeL2 = getBool(rxRecordData, index + 5 + (i*8), 1);
 
-                svInfo[i].elevation = rxRecordData.at( index + 6 + (i*8)) & 0xFF;
-                svInfo[i].azimuth = ((rxRecordData.at( index + 7 + (i*8)) << 8) & 0xFF) + (rxRecordData.at( index + 8 + (i*8)) & 0xFF);
-                svInfo[i].snrL1 = ((float)(rxRecordData.at( index + 9 + (i*8)) & 0xFF)) / 4.0f;
-                svInfo[i].snrL2 = ((float)(rxRecordData.at( index + 10 + (i*8)) & 0xFF)) / 4.0f;
+                svInfo[i].elevation = rxRecordData.at(index + 6 + (i*8));
+                svInfo[i].azimuth = (rxRecordData.at(index + 7 + (i*8)) << 8) + rxRecordData.at(index + 8 + (i*8));
+                svInfo[i].snrL1 = ((float)rxRecordData.at(index + 9 + (i*8))) / 4.0f;
+                svInfo[i].snrL2 = ((float)rxRecordData.at(index + 10 + (i*8))) / 4.0f;
             }
-
-            // Lets zero out the remaining SV info
-            for(int i = svInfo[0].numSv; i < 24; i++){
-                svInfo[i].numSv = 0;
-                svInfo[i].prn = 0;
-
-                svInfo[i].satelliteAboveHorizon = 0;
-                svInfo[i].assignedToChannel = 0;
-                svInfo[i].trackedL1 = 0;
-                svInfo[i].trackedL2 = 0;
-                svInfo[i].trackedAtBaseL1 = 0;
-                svInfo[i].trackedAtBaseL2 = 0;
-                svInfo[i].usedInSolution = 0;
-                svInfo[i].usedInRTK = 0;
-
-                svInfo[i].trackedPcodeL1 = 0;
-                svInfo[i].trackedPcodeL2 = 0;
-
-                svInfo[i].elevation = 0;
-                svInfo[i].azimuth = 0;
-                svInfo[i].snrL1 = 0;
-                svInfo[i].snrL2 = 0;
-            }
-
+            rxMsgs[SVDetail] = true;
             break;
 
         case(PositionTimeUTC):
@@ -322,21 +292,21 @@ void bd950::processPacket40(){
 
             positionTimeUTC.numOfSV = rxRecordData.at(index + 8);
 
-            positionTimeUTC.newPosition = (rxRecordData.at(index + 9) & 0b00000001);
-            positionTimeUTC.newClockThisSolution = (rxRecordData.at(index + 9) & 0b00000010);
-            positionTimeUTC.newHorizontalThisSolution = (rxRecordData.at(index + 9) & 0b00000100);
-            positionTimeUTC.newHeightThisSolution = (rxRecordData.at(index + 9) & 0b00001000);
-            positionTimeUTC.usesLeastSquaresPosition = (rxRecordData.at(index + 9) & 0b00100000);
-            positionTimeUTC.usesFilteredL1 = (rxRecordData.at(index + 9) & 0b10000000);
+            positionTimeUTC.newPosition = getBool(rxRecordData, index + 9, 0);
+            positionTimeUTC.newClockThisSolution = getBool(rxRecordData, index + 9, 1);
+            positionTimeUTC.newHorizontalThisSolution = getBool(rxRecordData, index + 9, 2);
+            positionTimeUTC.newHeightThisSolution = getBool(rxRecordData, index + 9, 3);
+            positionTimeUTC.usesLeastSquaresPosition = getBool(rxRecordData, index + 9, 5);
+            positionTimeUTC.usesFilteredL1 = getBool(rxRecordData, index + 9, 7);
 
-            positionTimeUTC.isDifferential = (rxRecordData.at(index + 10) & 0b00000001);
-            positionTimeUTC.isPhase = (rxRecordData.at(index + 10) & 0b00000010);
-            positionTimeUTC.isFixedInteger = (rxRecordData.at(index + 10) & 0b00000100);
-            positionTimeUTC.isOmnistar = (rxRecordData.at(index + 10) & 0b00001000);
-            positionTimeUTC.isStatic = (rxRecordData.at(index + 10) & 0b00010000);
-            positionTimeUTC.isNetworkRTK = (rxRecordData.at(index + 10) & 0b00100000);
-            positionTimeUTC.isLocationRTK = (rxRecordData.at(index + 10) & 0b01000000);
-            positionTimeUTC.isBeaconDGPS = (rxRecordData.at(index + 10) & 0b10000000);
+            positionTimeUTC.isDifferential = getBool(rxRecordData, index + 10, 0);
+            positionTimeUTC.isPhase = getBool(rxRecordData, index + 10, 1);
+            positionTimeUTC.isFixedInteger = getBool(rxRecordData, index + 10, 2);
+            positionTimeUTC.isOmnistar = getBool(rxRecordData, index + 10, 3);
+            positionTimeUTC.isStatic = getBool(rxRecordData, index + 10, 4);
+            positionTimeUTC.isNetworkRTK = getBool(rxRecordData, index + 10, 5);
+            positionTimeUTC.isLocationRTK = getBool(rxRecordData, index + 10, 6);
+            positionTimeUTC.isBeaconDGPS = getBool(rxRecordData, index + 10, 7);
 
             positionTimeUTC.initCounter = rxRecordData.at(index + 11);
             /*
@@ -352,149 +322,55 @@ void bd950::processPacket40(){
             ROS_INFO(" - isNetworkRTK: %d", positionTimeUTC.isNetworkRTK);
             ROS_INFO(" - isLocationRTK: %d", positionTimeUTC.isLocationRTK);
             ROS_INFO(" - isBeaconDGPS: %d", positionTimeUTC.isBeaconDGPS);*/
+
+            rxMsgs[PositionTimeUTC] = true;
             break;
 
         case(PositionSigma):
-            ROS_DEBUG("PositionSigma");
-            if(recordLength != 0x26) {
-                ROS_ERROR("Invalid message length!");
-                break;
-            }
-            tempFloat.bDat[0] = rxRecordData.at(index + 5) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 4) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 3) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 2) & 0xFF;
-            sigma.rms = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 9) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 8) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 7) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 6) & 0xFF;
-            sigma.sigmaEast = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 13) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 12) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 11) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 10) & 0xFF;
-            sigma.sigmaNorth = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 17) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 16) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 15) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 14) & 0xFF;
-            sigma.covarianceEastNorth = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 21) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 20) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 19) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 18) & 0xFF;
-            sigma.sigmaUp = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 25) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 24) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 23) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 22) & 0xFF;
-            sigma.majorAxis = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 29) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 28) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 27) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 26) & 0xFF;
-            sigma.minorAxis = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 33) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 32) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 31) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 30) & 0xFF;
-            sigma.orientation = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 37) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 36) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 35) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 34) & 0xFF;
-            sigma.unitVariance = tempFloat.fData;
+            ROS_DEBUG("PositionSigma"); 
+            sigma.rms = convertToFloat(rxRecordData, index + 2);
+            sigma.sigmaEast = convertToFloat(rxRecordData, index + 6);
+            sigma.sigmaNorth = convertToFloat(rxRecordData, index + 10);
+            sigma.covarianceEastNorth = convertToFloat(rxRecordData, index + 14);
+            sigma.sigmaUp = convertToFloat(rxRecordData, index + 18);
+            sigma.majorAxis = convertToFloat(rxRecordData, index + 22);
+            sigma.minorAxis = convertToFloat(rxRecordData, index + 26);
+            sigma.orientation = convertToFloat(rxRecordData, index + 30);
+            sigma.unitVariance = convertToFloat(rxRecordData, index + 34);
 
             sigma.numEpochs =   ((int)(rxRecordData.at(index + 38) & 0xFF) << 8) +
                                 ((int)(rxRecordData.at(index + 39) & 0xFF) << 0);
+
+            rxMsgs[PositionSigma] = true;
             break;
 
         case(Velocity):
             ROS_DEBUG("Velocity");
-            velocity.velocityValid = (bool)(rxRecordData.at(index + 2) & 0b00000001);
-            velocity.computeMethod = (bool)(rxRecordData.at(index + 2) & 0b00000010);
+            velocity.velocityValid = getBool(rxRecordData, index + 2, 0);
+            velocity.computeMethod = getBool(rxRecordData, index + 2, 1);
 
-            tempFloat.bDat[0] = rxRecordData.at(index + 6) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 5) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 4) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 3) & 0xFF;
-            velocity.horizontalVelocity = tempFloat.fData;
+            velocity.horizontalVelocity = convertToFloat(rxRecordData, index + 3);
+            velocity.heading = convertToFloat(rxRecordData, index + 7) * kRadianToDegrees;
+            velocity.verticalVelocity = convertToFloat(rxRecordData, index + 11);
 
-            tempFloat.bDat[0] = rxRecordData.at(index + 10) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index +  9) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index +  8) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index +  7) & 0xFF;
-            velocity.heading = tempFloat.fData * 57.2957795f; // TODO: Change to constant
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 14) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 13) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 12) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 11) & 0xFF;
-            velocity.verticalVelocity = tempFloat.fData;
-
+            rxMsgs[Velocity] = true;
             break;
 
         case(PositionVCV):
             ROS_DEBUG("PositionVCV");
-            tempFloat.bDat[0] = rxRecordData.at(index + 5) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 4) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 3) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 2) & 0xFF;
-            varianceCovariance.positionRMS = tempFloat.fData;
+            varianceCovariance.positionRMS = convertToFloat(rxRecordData, index + 2);
+            varianceCovariance.xx = convertToFloat(rxRecordData, index + 6);
+            varianceCovariance.xy = convertToFloat(rxRecordData, index + 10);
+            varianceCovariance.xz = convertToFloat(rxRecordData, index + 14);
+            varianceCovariance.yy = convertToFloat(rxRecordData, index + 18);
+            varianceCovariance.yz = convertToFloat(rxRecordData, index + 22);
+            varianceCovariance.zz = convertToFloat(rxRecordData, index + 26);
+            varianceCovariance.unitVariance = convertToFloat(rxRecordData, index + 30);
 
-            tempFloat.bDat[0] = rxRecordData.at(index + 9) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 8) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 7) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 6) & 0xFF;
-            varianceCovariance.xx = tempFloat.fData;
+            varianceCovariance.numEpochs = ((int)rxRecordData.at(index + 35) << 8) +
+                                           ((int)rxRecordData.at(index + 34) << 0);
 
-            tempFloat.bDat[0] = rxRecordData.at(index + 13) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 12) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 11) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 10) & 0xFF;
-            varianceCovariance.xy = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 17) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 16) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 15) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 14) & 0xFF;
-            varianceCovariance.xz = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 21) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 20) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 19) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 18) & 0xFF;
-            varianceCovariance.yy = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 25) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 24) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 23) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 22) & 0xFF;
-            varianceCovariance.yz = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 29) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 28) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 27) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 26) & 0xFF;
-            varianceCovariance.zz = tempFloat.fData;
-
-            tempFloat.bDat[0] = rxRecordData.at(index + 33) & 0xFF;
-            tempFloat.bDat[1] = rxRecordData.at(index + 32) & 0xFF;
-            tempFloat.bDat[2] = rxRecordData.at(index + 31) & 0xFF;
-            tempFloat.bDat[3] = rxRecordData.at(index + 30) & 0xFF;
-            varianceCovariance.unitVariance = tempFloat.fData;
-
-            varianceCovariance.numEpochs = ((int)(rxRecordData.at(index + 35) & 0xFF) << 8) +
-                                           ((int)(rxRecordData.at(index + 34) & 0xFF) << 0);
+            rxMsgs[PositionVCV] = true;
             break;
 
         default:

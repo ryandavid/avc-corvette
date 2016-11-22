@@ -99,7 +99,7 @@ do_install()
   brew install libyaml || true
 
   # Make sure PyQt5 is installed for Python 2.x
-  brew reinstall pyqt5 --with-python --without-python3
+  #brew reinstall pyqt5 --with-python --without-python3
 
   pip install -U setuptools rosdep rosinstall_generator wstool rosinstall catkin_tools bloom empy sphinx pycurl
 
@@ -158,6 +158,9 @@ do_install()
 
   # Hacky hack hack to disable QTKit (Quicktime) on macOS Sierra.
   echo "set(HAVE_QTKIT NO)" >> src/opencv3/cmake/OpenCVFindLibsVideo.cmake
+
+  # Hacky workaround for opencv3 to build
+  export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/usr/local/Cellar/qt5/5.7.0/lib/cmake/
 
   # Parallel build.
   catkin config --install  --install-space ${ROS_INSTALL_DIR} \

@@ -6,6 +6,8 @@
 
 #include "serial/serial.h"
 
+const float kRadianToDegrees = 57.2957795f;
+
 class GSOF_2 {
 public:
     double latitude;    // Latitude in WGS-84 datum
@@ -102,7 +104,6 @@ public:
 
 class GSOF_14 {
 public:
-    int numSv;
     int prn;
 
     bool satelliteAboveHorizon;
@@ -123,7 +124,6 @@ public:
     float snrL2;
 
     GSOF_14(){
-        numSv = 0;
         prn = 0;
         satelliteAboveHorizon = false;
         assignedToChannel = false;
@@ -204,50 +204,16 @@ public:
     bool showSettingsDialog();
     int getRxPackets();
     int getRxRecords();
-    bool rawDataAvailable();
+    bool process();
     void writeCorrectionData(std::vector<uint8_t> data);
     void queryReceiverInfo();
 
     GSOF_2 llh;
     GSOF_12 sigma;
-    GSOF_14 svInfo[24];      // SV Information
+    std::vector<GSOF_14> svInfo;      // SV Information
     GSOF_26 positionTimeUTC;
     GSOF_8 velocity;
     GSOF_11 varianceCovariance;
-
-    typedef union _un_double_
-    {
-            unsigned char bDat[8];
-            double dData;
-    }UN_DOUBLE;
-
-    typedef union _un_float_
-    {
-            unsigned char bDat[4];
-            float fData;
-    }UN_FLOAT;
-
-
-private:
-    serial::Serial _port;;
-    std::vector<uint8_t> rawDataBuffer;
-
-    int parserStateMachine;
-    int numReceivedRecords;
-    int numReceivedPackets;
-
-    uint8_t rxRcvrStatus;
-    uint8_t rxPacketLength;
-    uint8_t rxPacketType;
-    uint8_t rxTransNumber;
-    uint8_t rxPageIndex;
-    uint8_t rxMaxPageIndex;
-    uint8_t rxRecordType;
-    uint8_t rxRecordLength;
-    std::vector<uint8_t> rxRecordData;
-    uint8_t rxChecksum;
-    uint8_t calculatedChecksum;
-
 
     enum gsof {
         PositionTime        = 1,
@@ -274,9 +240,45 @@ private:
         BasePositionQuality = 41
     };
 
+    std::map<gsof, bool> rxMsgs;
+
+
+private:
+    typedef union _un_double_
+    {
+            unsigned char bDat[8];
+            double dData;
+    }UN_DOUBLE;
+
+    typedef union _un_float_
+    {
+            unsigned char bDat[4];
+            float fData;
+    }UN_FLOAT;
+
+    serial::Serial _port;;
+    std::vector<uint8_t> rawDataBuffer;
+
+    int parserStateMachine;
+    int numReceivedRecords;
+    int numReceivedPackets;
+
+    uint8_t rxRcvrStatus;
+    uint8_t rxPacketLength;
+    uint8_t rxPacketType;
+    uint8_t rxTransNumber;
+    uint8_t rxPageIndex;
+    uint8_t rxMaxPageIndex;
+    uint8_t rxRecordType;
+    uint8_t rxRecordLength;
+    std::vector<uint8_t> rxRecordData;
+    uint8_t rxChecksum;
+    uint8_t calculatedChecksum;
+
     void processPacket40();
-
-
+    double convertToDouble(std::vector<uint8_t> data, uint8_t starting_index);
+    float convertToFloat(std::vector<uint8_t> data, uint8_t starting_index);
+    bool getBool(std::vector<uint8_t> data, uint8_t starting_index, uint8_t bit_index);
 };
 
 

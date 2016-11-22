@@ -50,6 +50,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  NavDebug.msg
   NavSVInfo.msg
   NavSVInfoArray.msg
 )
@@ -184,6 +185,11 @@ target_link_libraries(bd950_driver_node
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+
+catkin_install_python(PROGRAMS
+  scripts/display_sv_info.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 #############
 ## Testing ##
