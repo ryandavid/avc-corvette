@@ -21,7 +21,7 @@ fHandle = open(filename, "wb")
 print "Writing to {0}".format(filename)
 
 rospy.init_node("listener", anonymous=True)
-rospy.Subscriber("/ntrip_client_node/data", ByteMultiArray, rxCallback)
+rospy.Subscriber("/ntrip/data", ByteMultiArray, rxCallback)
 
 rospy.spin()
 

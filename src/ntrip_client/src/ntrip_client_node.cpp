@@ -35,7 +35,6 @@
 #include "ros/ros.h"
 #include "std_msgs/ByteMultiArray.h"
 
-#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -113,12 +112,13 @@ static int encode(char *buf, int size, const char *user, const char *pwd) {
 }
 
 int main(int argc, char **argv) {
-    int error = 0;
-    int sockfd = 0;
     char buf[MAXDATASIZE];
+    char req_buf[MAXDATASIZE];
+    int req_buf_size;
     struct sockaddr_in their_addr; /* connector's address information */
     struct hostent *he;
     struct servent *se;
+    struct timeval socket_timeout = {.tv_sec = 5, .tv_usec = 0};
     char *b;
     long i;
     int numbytes = 0;
@@ -182,20 +182,13 @@ int main(int argc, char **argv) {
     if(!(he=gethostbyname(server.c_str()))) {
         ROS_ERROR("Server name lookup failed for '%s'.", server.c_str());
         return -1;
-    } else if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        ROS_ERROR("Failed to open socket.");
-        return -1;
     }
 
     their_addr.sin_family = AF_INET;
     their_addr.sin_addr = *((struct in_addr *)he->h_addr);
 
-    if(connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
-        ROS_ERROR("Failed to connect.");
-        return -1;
-    }
-
-    i = snprintf(buf, MAXDATASIZE-40, /* leave some space for login */
+    // Setup the request header.
+    req_buf_size = snprintf(req_buf, MAXDATASIZE-40, /* leave some space for login */
         "GET /%s HTTP/1.1\r\n"
         "Host: %s\r\n%s"
         "User-Agent: %s/%s\r\n"
@@ -207,142 +200,157 @@ int main(int argc, char **argv) {
         revisionstr,
         (*username.c_str() || *password.c_str()) ? "\r\nAuthorization: Basic " : "");
 
-    if(i > MAXDATASIZE-40 || i < 0) {
-        ROS_ERROR("Requested data too long.");
-        return -1;
-    }
+    req_buf_size += encode(req_buf+i, MAXDATASIZE-i-4, username.c_str(), password.c_str());
+    req_buf[req_buf_size++] = '\r';
+    req_buf[req_buf_size++] = '\n';
+    req_buf[req_buf_size++] = '\r';
+    req_buf[req_buf_size++] = '\n';
 
-    i += encode(buf+i, MAXDATASIZE-i-4, username.c_str(), password.c_str());
-    if(i > MAXDATASIZE-4) {
-        ROS_ERROR("Username and/or password too long.");
-        return -1;
-    }
-
-    buf[i++] = '\r';
-    buf[i++] = '\n';
-    buf[i++] = '\r';
-    buf[i++] = '\n';
-
-    if(send(sockfd, buf, (size_t)i, 0) != i) {
-        ROS_ERROR("Failed to send.");
-        return -1;
-    }
-
-    int k = 0;
-    int chunkymode = 0;
-    int chunksize = 0;
+    ros::Rate retry_rate(0.5f);    // Retry connecting every 2 seconds.
 
     ROS_INFO("Start NTRIP client.");
-    while(ros::ok() && !error && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0) {
-        if(!k) {
-            buf[numbytes] = 0; /* latest end mark for strstr */
+    while(ros::ok()){
+        int k = 0;
+        int chunkymode = 0;
+        int chunksize = 0;
+        int error = 0;
 
-            if(numbytes > 17 &&
-            !strstr(buf, "ICY 200 OK")  &&  /* case 'proxy & ntrip 1.0 caster' */
-            (!strncmp(buf, "HTTP/1.1 200 OK\r\n", 17) ||
-            !strncmp(buf, "HTTP/1.0 200 OK\r\n", 17))) {
-                const char *datacheck = "Content-Type: gnss/data\r\n";
-                const char *chunkycheck = "Transfer-Encoding: chunked\r\n";
-                int l = strlen(datacheck)-1;
-                int j=0;
-                for(i = 0; j != l && i < numbytes-l; ++i) {
-                    for(j = 0; j < l && buf[i+j] == datacheck[j]; ++j);
-                }
+        int sockfd = 0;
 
-                if(i == numbytes-l) {
-                    ROS_ERROR("No 'Content-Type: gnss/data' found");
-                    error = 1;
-                }
-
-                l = strlen(chunkycheck)-1;
-                j=0;
-                for(i = 0; j != l && i < numbytes-l; ++i) {
-                    for(j = 0; j < l && buf[i+j] == chunkycheck[j]; ++j);
-                }
-                if(i < numbytes-l) {
-                    chunkymode = 1;
-                }
-
-            } else if(!strstr(buf, "ICY 200 OK")) {
-                ROS_ERROR("Could not get the requested data.");
-                error = 1;
-
-            } else {
-                ROS_ERROR("NTRIP version 2 HTTP connection failed, falling back to NTRIP1.");
-            }
-
-            k = 1;
-            char *ep = strstr(buf, "\r\n\r\n");
-            if(!ep || ep+4 == buf+numbytes) {
-                continue;
-            }
-            ep += 4;
-            memmove(buf, ep, numbytes-(ep-buf));
-            numbytes -= (ep-buf);
-        }
-
-        int cstop = 0;
-        int pos = 0;
-        std_msgs::ByteMultiArray msg;
-        while(!cstop && !error && pos < numbytes) {
-            switch(chunkymode) {
-            case 1: /* reading number starts */
-                chunksize = 0;
-                ++chunkymode; /* no break */
-            case 2: /* during reading number */
-                i = buf[pos++];
-                if(i >= '0' && i <= '9') {
-                    chunksize = chunksize*16+i-'0';
-                } else if(i >= 'a' && i <= 'f') {
-                    chunksize = chunksize*16+i-'a'+10;
-                } else if(i >= 'A' && i <= 'F') {
-                    chunksize = chunksize*16+i-'A'+10;
-                } else if(i == '\r') {
-                    ++chunkymode;
-                } else if(i == ';') {
-                    chunkymode = 5;
-                } else {
-                    cstop = 1;
-                }
-                break;
-            case 3: /* scanning for return */
-                if(buf[pos++] == '\n') {
-                    chunkymode = chunksize ? 4 : 1;
-                } else {
-                    cstop = 1;
-                }
-                break;
-            case 4: /* output data */
-                i = numbytes-pos;
-                if(i > chunksize) {
-                    i = chunksize;
-                }
-
-                msg.data.insert(msg.data.end(), &(buf[pos]), &(buf[pos + i]));
-                dataTopic.publish(msg);
-
-                chunksize -= i;
-                pos += i;
-                if(!chunksize) {
-                    chunkymode = 1;
-                }
-                break;
-            case 5:
-                if(i == '\r') {
-                    chunkymode = 3;
-                }
-              break;
-            }
-        }
-
-        if(cstop) {
-            ROS_ERROR("Error in chunky transfer encoding");
+        if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+            ROS_DEBUG("Failed to open socket.");
+            error = 1;
+        } else if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&socket_timeout,sizeof(struct timeval)) != 0) {
+            ROS_DEBUG("Failed to set timeout for socket.");
+            error = 1;
+        } else if(connect(sockfd, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) == -1) {
+            ROS_DEBUG("Failed to connect socket.");
+            error = 1;
+        } else if(send(sockfd, req_buf, (size_t)req_buf_size, 0) != req_buf_size) {
+            ROS_DEBUG("Failed to send.");
             error = 1;
         }
-    }
 
-    if(sockfd) {
-        close(sockfd);
+        if(!error){
+            ROS_INFO("Successfully connected!");
+        }
+        while(ros::ok() && !error && (numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) > 0) {
+            if(!k) {
+                buf[numbytes] = 0; /* latest end mark for strstr */
+
+                if((numbytes > 17) &&
+                   !strstr(buf, "ICY 200 OK")  &&  /* case 'proxy & ntrip 1.0 caster' */
+                   (!strncmp(buf, "HTTP/1.1 200 OK\r\n", 17) ||
+                   !strncmp(buf, "HTTP/1.0 200 OK\r\n", 17))) {
+                    const char *datacheck = "Content-Type: gnss/data\r\n";
+                    const char *chunkycheck = "Transfer-Encoding: chunked\r\n";
+                    int l = strlen(datacheck)-1;
+                    int j=0;
+                    for(i = 0; j != l && i < numbytes-l; ++i) {
+                        for(j = 0; j < l && buf[i+j] == datacheck[j]; ++j);
+                    }
+
+                    if(i == numbytes-l) {
+                        ROS_ERROR("No 'Content-Type: gnss/data' found");
+                        error = 1;
+                    }
+
+                    l = strlen(chunkycheck)-1;
+                    j=0;
+                    for(i = 0; j != l && i < numbytes-l; ++i) {
+                        for(j = 0; j < l && buf[i+j] == chunkycheck[j]; ++j);
+                    }
+                    if(i < numbytes-l) {
+                        chunkymode = 1;
+                    }
+
+                } else if(!strstr(buf, "ICY 200 OK")) {
+                    ROS_ERROR("Could not get the requested data.");
+                    error = 1;
+
+                } else {
+                    ROS_ERROR("NTRIP version 2 HTTP connection failed, falling back to NTRIP1.");
+                }
+
+                k = 1;
+                char *ep = strstr(buf, "\r\n\r\n");
+                if(!ep || ep+4 == buf+numbytes) {
+                    continue;
+                }
+                ep += 4;
+                memmove(buf, ep, numbytes-(ep-buf));
+                numbytes -= (ep-buf);
+            }
+
+            int cstop = 0;
+            int pos = 0;
+            std_msgs::ByteMultiArray msg;
+            while(!cstop && !error && pos < numbytes) {
+                switch(chunkymode) {
+                case 1: /* reading number starts */
+                    chunksize = 0;
+                    ++chunkymode; /* no break */
+                case 2: /* during reading number */
+                    i = buf[pos++];
+                    if(i >= '0' && i <= '9') {
+                        chunksize = chunksize*16+i-'0';
+                    } else if(i >= 'a' && i <= 'f') {
+                        chunksize = chunksize*16+i-'a'+10;
+                    } else if(i >= 'A' && i <= 'F') {
+                        chunksize = chunksize*16+i-'A'+10;
+                    } else if(i == '\r') {
+                        ++chunkymode;
+                    } else if(i == ';') {
+                        chunkymode = 5;
+                    } else {
+                        cstop = 1;
+                    }
+                    break;
+                case 3: /* scanning for return */
+                    if(buf[pos++] == '\n') {
+                        chunkymode = chunksize ? 4 : 1;
+                    } else {
+                        cstop = 1;
+                    }
+                    break;
+                case 4: /* output data */
+                    i = numbytes-pos;
+                    if(i > chunksize) {
+                        i = chunksize;
+                    }
+
+                    msg.data.insert(msg.data.end(), &(buf[pos]), &(buf[pos + i]));
+                    dataTopic.publish(msg);
+
+                    chunksize -= i;
+                    pos += i;
+                    if(!chunksize) {
+                        chunkymode = 1;
+                    }
+                    break;
+                case 5:
+                    if(i == '\r') {
+                        chunkymode = 3;
+                    }
+                  break;
+                }
+            }
+
+            if(cstop) {
+                ROS_ERROR("Error in chunky transfer encoding");
+                error = 1;
+            }
+        }
+
+        if((numbytes <= 0) || (error)) {
+            ROS_ERROR("Connection failed.");
+        }
+
+        if(sockfd) {
+            close(sockfd);
+        }
+
+        retry_rate.sleep();
     }
 
     return 0;
