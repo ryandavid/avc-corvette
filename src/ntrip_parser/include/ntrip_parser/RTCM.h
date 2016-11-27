@@ -41,7 +41,10 @@ class RTCM : public GPSDecoder {
     ,msg_len(0)
     ,health(0)
     ,fillptr(message)
-    ,pfptr(NULL) {}
+    ,pfptr(NULL)
+    ,ref_x(0.0)
+    ,ref_y(0.0)
+    ,ref_z(0.0) {}
 
     // defined as required by baseclass
     void Decode(char* _ptrBuffer=NULL, int _nBufLen=0) {
@@ -53,7 +56,9 @@ class RTCM : public GPSDecoder {
 
     void new_byte(u_char b);
 
-    int word_count, frame_count, pf_count;
+    std::map<uint32_t, uint32_t> rx_msg_counts;
+    int msg_type, station_id, z_count, seqno, msg_len, health;
+    float ref_x, ref_y, ref_z;
 
   protected:
     // Station ID used in m_lObsList
@@ -241,8 +246,10 @@ class RTCM : public GPSDecoder {
       const RecoveredTimeTagAndClockError r(expandedTimeOfMeasurement);
       if(r.timeTagMod3600 != obsMapTimeTagMod3600) {
         debugTime(r.timeTagMod3600,r.clockError);
-	if(obsMap.size()) dumpObsMap();
-	obsMapTimeTagMod3600= r.timeTagMod3600;
+      	if(obsMap.size()) {
+          dumpObsMap();
+        }
+      	obsMapTimeTagMod3600 = r.timeTagMod3600;
       }
     }
 
@@ -279,7 +286,7 @@ class RTCM : public GPSDecoder {
 
     int rtcm_state, fail_count, p_fail, preamble_flag;
     int sync_bit, fill_shift, word_sync, frame_sync, frame_fill;
-    int msg_type, station_id, z_count, seqno, msg_len, health;
+    int word_count, frame_count, pf_count;
 
     u_int message[40];	        /* message buffer */
     u_int *fillptr;		/* pointer to fill message */

@@ -2,10 +2,9 @@
 // Modified to be a ROS node and add additional message types
 // to the decoder.
 
+#include <cmath>
 
 #include "ntrip_parser/RTCM.h"
-
-#include <cmath>
 
 #if !defined(__GNUC__)
 double rint(double val) {
@@ -132,7 +131,8 @@ char * RTCM::state_name[] = {
  "WORD_SYNCING",
  "WORD_SYNC",
  "FRAME_SYNCING",
- "FULL_SYNC"};
+ "FULL_SYNC"
+};
 
 u_int RTCM::tx_speed[] = { 25, 50, 100, 110, 150, 200, 250, 300 };
 
@@ -183,11 +183,6 @@ int RTCM::preamble() {
 /* state_change - change state & print a useful message */
 
 void RTCM::state_change(u_int s) {
-#ifdef DEBUG
-  printf("M\tstate change: %s -> %s\n",
-	state_name[rtcm_state], state_name[s]);
-  fflush(stdout);
-#endif
   rtcm_state = s;
 }
 
@@ -199,8 +194,9 @@ u_int RTCM::parity_ok() {
   u_int t, th, p;
 
   th = this_word;
-  if (th & P_30_MASK)
+  if (th & P_30_MASK) {
     th ^= W_DATA_MASK;
+  }
 
   t = th & PARITY_25;
   p = parity_of[t & 0xff] ^ parity_of[(t>>8)&0xff] ^
@@ -223,8 +219,10 @@ u_int RTCM::parity_ok() {
 
 
   if (!this_word || ((this_word &0x3f) != p)) {
-    if (rtcm_state > WORD_SYNCING)
+    if (rtcm_state > WORD_SYNCING) {
       pf_count++;
+    }
+
     return 0;
   }
   
@@ -268,8 +266,7 @@ int RTCM::filled_word(u_char b) {
     if (fill_shift) {
       next_bits = b << (DATA_SHIFT + fill_shift);
       this_word |= b >> (-fill_shift);
-    }
-    else {
+    } else {
       next_bits = 0;
       this_word |= b;
     }
@@ -282,13 +279,7 @@ int RTCM::filled_word(u_char b) {
   return 0;
 }
 
-
-//
-//
-//
-void RTCM::msgRTKUncorrectedCarrierPhases() {
-
-  
+void RTCM::msgRTKUncorrectedCarrierPhases() {  
   const u_int freqIndicator   = (message[2]>>28)&0x3;
 
   const u_int gnssTimeofMeasurement = (message[2]>>6)&0xfffff;
@@ -300,12 +291,7 @@ void RTCM::msgRTKUncorrectedCarrierPhases() {
     const int pCodeIndicator  = (message[m] >> 28) & 0x1;
     const int glonassIndicator = (message[m] >> 27) & 0x1;
 
-#ifdef DEBUG
-    const u_int svprn    = (message[m] >> 22) & 0x1f 
-      + (glonassIndicator ? glonass_svid : 0);
-#else
     const u_int svprn    = (message[m] >> 22) & 0x1f;
-#endif
     if(!glonassIndicator) {
       dumpOnNewTimeTag(expandedTimeOfMeasurement);
 
@@ -333,13 +319,6 @@ void RTCM::msgRTKUncorrectedCarrierPhases() {
         /* unknown frequency */;
       }
     }
-
-#ifdef DEBUG
-    printf("   * Carrier Phases\n");
-    printf("     - PRN:\t%d\n", svprn);
-    printf("     - System:\t%s\n", glonassIndicator ? "GLONASS" : "GPS");
-    printf("     - Freq:\t%s\n", freqIndicatorS[freqIndicator]);
-#endif
   }
 }
 
@@ -376,13 +355,6 @@ void RTCM::msgRTKUncorrectedPseudoranges() {
       default:
         /* unknown frequency */;
       }
-
-      #ifdef DEBUG
-        printf("   * Pseudoranges:\n");
-        printf("     - PRN:\t%d\n", svprn);
-        printf("     - System:\t%s\n", glonassIndicator ? "GLONASS" : "GPS");
-        printf("     - Freq:\t%s\n", freqIndicatorS[freqIndicator]);
-      #endif
     }
   }
 }
@@ -445,11 +417,6 @@ void RTCM::printcor() {
       iod = (m >>6) & 0xff;
       i+= 2;
     }
-#ifdef DEBUG
-    printf("S\t%d\t%d\t%d\t%.1f\t%.3f\t%.3f\n", sat, udre, iod,
-	z_count*ZCOUNT_SCALE, range*(scale?RANGE_LARGE:RANGE_SMALL),
-	rangerate*(scale?RANGERATE_LARGE:RANGERATE_SMALL));
-#endif
   }
 }
 
@@ -466,14 +433,11 @@ void RTCM::printref(void) {
   y = ((message[3] & W_DATA_MASK) << 10) | ((message[4] & W_DATA_MASK) >> 14);
   z = ((message[4] & W_DATA_MASK) << 18) | ((message[5] & W_DATA_MASK) >> 6);
 
-  onPosition(x*XYZ_SCALE, y*XYZ_SCALE, z*XYZ_SCALE);
- 
-#ifdef DEBUG
-  printf("   * Reference Station\n");
-  printf("     - X:\t%fm\n", x * XYZ_SCALE);
-  printf("     - Y:\t%fm\n", y * XYZ_SCALE);
-  printf("     - Z:\t%fm\n", z * XYZ_SCALE);
-#endif
+  ref_x = x * XYZ_SCALE;
+  ref_y = y * XYZ_SCALE;
+  ref_z = z * XYZ_SCALE;
+
+  onPosition(ref_x, ref_y, ref_z);
 }
 
 /* printba - print beacon almanac
@@ -493,39 +457,18 @@ void RTCM::printba() {
   hlth = ((message[4] >> 22) & 0x3);
   id = ((message[4] >> 12) & 0x3ff);
   bitrate = ((message[4] >> 9) & 0x7);
-
-#ifdef DEBUG
-  printf("A\t%.4f\t%.4f\t%d\t%.1f\t%d\t%d\t%d\n", (la*LA_SCALE), (lo*LO_SCALE),
-	range, (freq*FREQ_SCALE+FREQ_OFFSET), hlth, id, tx_speed[bitrate]);
-#endif
 }
 
 /* printspec - print text of special message
 */
 
 void RTCM::printspec() {
-  u_int i, d, c;
-#ifdef DEBUG
-  if (pfptr)
-    msg_len = (pfptr-message)>>2;
-  printf("T\t");
-  for (i=0; i< msg_len; i++) {
-    d = message[i+2] & W_DATA_MASK;
-    if ((c=d>>22)) putchar(c); else break;
-    if ((c=((d>>14) & 0xff))) putchar(c); else break;
-    if ((c=((d>>6) & 0xff))) putchar(c); else break;
-  }
-  printf("\n");
-#endif
 }
 
 /* printnull - print a marker for a null message
 */
 
 void RTCM::printnull() {
-#ifdef DEBUG
-    printf("N\n");
-#endif
 }
 
 /* printdatum - print datum message
@@ -537,12 +480,15 @@ void RTCM::printdatum() {
   u_int d, dgnss, dat;
   int dx, dy, dz;
 
-  if (pfptr)
+  if (pfptr) {
     return;
+  }
+
   d = message[2] & W_DATA_MASK;
   dgnss = d>>27;
   dat = (d>>26) & 1;
   dname[0] = (d>>14) & 0xff;
+
   if (dname[0]) { /* not null */
     dname[1] = (d>>6) & 0xff;
     d = message[3] & W_DATA_MASK;
@@ -551,30 +497,29 @@ void RTCM::printdatum() {
     dname[4] = (d>>6) & 0xff;
     dname[5] = '\0';
     dn = dname;
-  }
-  else
+  } else {
     dn = "NUL";
-#ifdef DEBUG
-  printf("D\t%s\t%1d\t%s", (dgnss==0)?"GPS":((dgnss==1)?"GLONASS":"???"),
-	dat, dn);
-#endif
+  }
+
   if (msg_len > 2) {
     d = message[4] & W_DATA_MASK;
     dx = (d>>14) & 0xffff;
-    if (dx > 32767) dx -= 65536;
+    if (dx > 32767) {
+      dx -= 65536;
+    }
+
     dy = (d<<2) & 0xff00;
     d = message[5] & W_DATA_MASK;
     dy |= (d>>22) & 0xff;
-    if (dy > 32767) dy -= 65536;
+    if (dy > 32767) {
+      dy -= 65536;
+    }
+
     dz = (d>>6) & 0xffff;
-    if (dz > 32767) dz -= 65536;
-#ifdef DEBUG
-    printf("\t%.1f\t%.1f\t%.1f", dx*DXYZ_SCALE, dy*DXYZ_SCALE, dz*DXYZ_SCALE);
-#endif
+    if (dz > 32767) {
+      dz -= 65536;
+    }
   }
-#ifdef DEBUG
-  printf("\n");
-#endif
 }
 
 /* printconh - print constellation health message
@@ -585,9 +530,11 @@ void RTCM::printconh() {
 
   if (pfptr) {
     msg_len = (pfptr-message) - 2;
-    if (!msg_len)
+    if (!msg_len) {
       return;
+    }
   }
+
   for (i=0; i< msg_len; i++) {
     d = message[i+2] & W_DATA_MASK;
     sat = (d>>24) & 0x1f;
@@ -599,11 +546,8 @@ void RTCM::printconh() {
     nd = (d>>13) & 1;
     lw = (d>>12) & 1;
     tu = (d>>8) & 0x0f;
-#ifdef DEBUG
-    printf("C\t%2d\t%1d  %1d\t%2d\t%1d  %1d  %1d\t%2d\n",
-	sat, iodl, hlth, (cnr?(cnr+CNR_OFFSET):-1), he, nd, lw, tu*TU_SCALE);
-#endif
-  } 
+
+  }
 }
 
 /* new_frame - called when a new frame is complete */
@@ -612,25 +556,17 @@ void RTCM::new_frame() {
   char s[8];
 
   frame_count++;
-  if (pfptr == message) /* dud frame */
+  if (pfptr == message) {/* dud frame */
     return;
+  }
 
   msg_type = (message[0]>>16)&0x3f;
   station_id = (message[0]>>6)&0x3ff;
   z_count = (message[1]>>17)&0x1fff;
   health = (message[1]>>6)&0x7;
-#ifdef DEBUG
-  if (pfptr)
-    sprintf(s, "\tT\t%d", (pfptr-message)-2);
 
-  printf("New Frame:\n");
-  printf(" - Msg Type:\t%d\n", msg_type);
-  printf(" - Station ID:\t%d\n", station_id);
-  printf(" - Z Count:\t%d\n", z_count);
-  printf(" - Sequence:\t%d\n", seqno);
-  printf(" - Msg Length:\t%d\n", msg_len);
-  printf(" - Health:\t%d\n", health);
-#endif
+  rx_msg_counts[msg_type]++;
+
   switch (msg_type) {
 
     case MSG_FULLCOR:
@@ -671,9 +607,6 @@ void RTCM::new_frame() {
       break;
 
     default:
-#ifdef DEBUG
-      printf("?\t%d\n", msg_type);
-#endif
       break;
   }
 }
@@ -690,9 +623,9 @@ void RTCM::frame_start() {
 }
 
 void RTCM::find_start() {
-  if ((data_word = parity_ok()))
+  if ((data_word = parity_ok())) {
     p_fail = 0;
-  else if (++p_fail >= P_FAIL_TEST) { /* too many consecutive parity fails */
+  } else if (++p_fail >= P_FAIL_TEST) { /* too many consecutive parity fails */
     state_change(NO_SYNC);
     return;
   }
@@ -707,9 +640,9 @@ void RTCM::find_start() {
 void RTCM::fill_frame() {
   int seq;
 
-  if ((data_word = parity_ok()))
+  if ((data_word = parity_ok())) {
     p_fail=0;
-  else if (++p_fail >= P_FAIL_TEST) {
+  } else if (++p_fail >= P_FAIL_TEST) {
     state_change(NO_SYNC);
     return;
   }
@@ -724,70 +657,46 @@ void RTCM::fill_frame() {
     buffer(data_word);
     seq = (data_word>>14)&0x7;
     msg_len = (data_word>>9)&0x1f;
-#ifdef DEBUG
-    if (debug)
-	fprintf(stderr, "ff=%d: %08x %08x %d %d %d %d %s\n", frame_fill,
-		fillptr,
-	data_word, msg_len, word_count, pf_count, seqno, state_name[rtcm_state]);
-#endif
-    if ((seqno < 0) || (((seqno +1) & 0x7) == seq))
+
+    if ((seqno < 0) || (((seqno +1) & 0x7) == seq)) {
       seqno = seq; /* resync */
-    else { /* sequence error */
+    } else { /* sequence error */
       state_change(WORD_SYNC); /* to be on the safe side */
-#ifdef DEBUG
-fprintf(stderr,"2\n");
-#endif
       return;
     }
   }
   else if (frame_fill > msg_len) { /* should be next preamble */
-#ifdef DEBUG
-    if (debug)
-	fprintf(stderr, "ff=%d: %08x %08x %d %d %d %d %s\n", frame_fill,
-		fillptr,
-	data_word, msg_len, word_count, pf_count, seqno, state_name[rtcm_state]);
-#endif
     if (rtcm_state == FRAME_SYNCING) { /* be very tough */
       if (!(data_word && preamble())) {
-	state_change(WORD_SYNC); /* start again */
-      }
-      else if (++frame_sync >= F_SYNC_TEST) {
-/*	frame_count = 0; */
-	state_change(FULL_SYNC);
-	new_frame(); /* output the last frame acquired before we start a new one */
+        state_change(WORD_SYNC); /* start again */
+      } else if (++frame_sync >= F_SYNC_TEST) {
+        /*	frame_count = 0; */
+      	state_change(FULL_SYNC);
+      	new_frame(); /* output the last frame acquired before we start a new one */
       }
       frame_start(); /* new frame here */
-    }
-    else {
+    } else {
       frame_start(); /* new frame here */
-      if (!data_word) /* parity error on preamble - keep sync but lose message */
-	pfptr = message; /* indicates dud message */
-      else if (!preamble()) { /* good word but no preamble! */
-	state_change(WORD_SYNC); /* can't carry on */
+      if (!data_word) { /* parity error on preamble - keep sync but lose message */
+	       pfptr = message; /* indicates dud message */
+      } else if (!preamble()) { /* good word but no preamble! */
+	       state_change(WORD_SYNC); /* can't carry on */
       }
     }
   }
   else { /* other message words */
-#ifdef DEBUG
-    if (debug)
-	fprintf(stderr, "ff=%d: %08x %08x %d %d %d %d %s\n", frame_fill,
-		fillptr,
-	data_word, msg_len, word_count, pf_count, seqno, state_name[rtcm_state]);
-#endif
-    if (!data_word && !pfptr)
+    if (!data_word && !pfptr) {
       pfptr = fillptr; /* mark the (first) error */
+    }
+
     buffer(data_word);
-    if ((frame_fill == msg_len) && (rtcm_state == FULL_SYNC)) /* frame completed */
+    if ((frame_fill == msg_len) && (rtcm_state == FULL_SYNC)) {/* frame completed */
       new_frame();
+    }
   }
 }
 
 void RTCM::status_byte(u_char b) {
-#ifdef DEBUG
-#if defined(PRINTSTATUS)
-    printf("-\tstatus\t-\t%d 0x%x\n", b, b);
-#endif
-#endif
 }
 
 
@@ -803,35 +712,30 @@ void RTCM::data_byte(u_char b) {
   if (rtcm_state == NO_SYNC) {
     if(find_sync(b)) {
       state_change(WORD_SYNCING);
-#ifdef DEBUG
-      printf("M\tsync_bit: %d\n", sync_bit);
-#endif
       word_sync = 1;
       next_word();
     }
-  }
-  else if (filled_word(b)) {
+  } else if (filled_word(b)) {
     switch (rtcm_state) {
 
     case WORD_SYNCING:
       data_word = parity_ok();
       next_word();
+
       if (data_word) {
         if (++word_sync >= W_SYNC_TEST) {
-	  state_change(WORD_SYNC);
-	  p_fail = 0;
-	  frame_sync = 1;
-	  if (preamble()) { /* just in case we hit one immediately */
-	    frame_start();
-	    state_change(FRAME_SYNCING);
-	  }
-	}
-      }
-      else {
-     	if (--word_sync <= 0) {
-	  state_change(NO_SYNC);
-	  return;
-	}
+      	  state_change(WORD_SYNC);
+      	  p_fail = 0;
+      	  frame_sync = 1;
+
+      	  if (preamble()) { /* just in case we hit one immediately */
+      	    frame_start();
+      	    state_change(FRAME_SYNCING);
+      	  }
+      	}
+      } else if (--word_sync <= 0) {
+    	  state_change(NO_SYNC);
+    	  return;
       }
       break;
 
@@ -852,16 +756,7 @@ void RTCM::data_byte(u_char b) {
 
 
 void RTCM::new_byte(u_char b) {
-
   switch (b >> DATA_SHIFT) {
-
-    case 0:
-    case 2:
-#ifdef DEBUG
-	fprintf(stderr, "RTCM 2.x: unknown byte type %d (%d 0x%0x)\n", b >> DATA_SHIFT,
-		b, b);
-#endif
-      return;
 
     case 3: /* status */
       status_byte(b);
@@ -870,19 +765,11 @@ void RTCM::new_byte(u_char b) {
     case 1: /* data */
       data_byte(b);
       return;
+
+    case 0:
+    case 2:
+    default:
+      // Invalid byte;
+      return;
   }
 }
-
-int main() {
-  int b;
-
-  RTCM decoder = RTCM(280, true);
-
-  while ((b=getchar()) != EOF)
-    decoder.new_byte(b);
-
-  printf("M\tword count: %d\tparity failures: %d\tframe count: %d\n",
-	  decoder.word_count, decoder.pf_count, decoder.frame_count);
-
-  return 0;
-} 

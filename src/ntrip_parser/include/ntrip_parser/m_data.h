@@ -125,15 +125,4 @@ void WriteNative(ostream &os,const C_Data<T> c_data) {
 }
 
 
-
-
-template <class T2,class T3>
-void divmod(const long numer,const long denom,T2 &quot,T3 &rem) {
-  ldiv_t res;
-  ldiv(numer,denom);
-  quot = res.quot;
-  rem  = res.rem;
-}
-
-
 #endif

@@ -6,6 +6,7 @@ project(ntrip_parser)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -42,11 +43,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  KeyInt.msg
+  DecodedNtrip.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -63,10 +64,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs  # Or other packages containing msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -117,9 +118,10 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(m_date
-  src/m_date.cpp
-)
+add_library(m_date src/m_date.cpp)
+
+add_library(rtcm src/RTCM.cpp)
+target_link_libraries(rtcm m_date ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -127,7 +129,7 @@ add_library(m_date
 # add_dependencies(ntrip_parser ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(ntrip_parser_node src/RTCM.cpp)
+add_executable(ntrip_parser_node src/ntrip_client_parser.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -135,7 +137,7 @@ add_executable(ntrip_parser_node src/RTCM.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ntrip_parser_node
-	m_date
+	rtcm
   ${catkin_LIBRARIES}
 )
 

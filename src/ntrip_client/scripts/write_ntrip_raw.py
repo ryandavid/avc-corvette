@@ -10,6 +10,9 @@ def rxCallback(data):
 	fHandle.write(converted)
 	rospy.loginfo("I wrote {0} bytes.".format(len(converted)))
 
+	for byte in converted:
+		print "%02X" % byte
+
 
 
 if(len(sys.argv) != 2):
