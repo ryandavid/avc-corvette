@@ -285,6 +285,8 @@ void RTCM::msgRTKUncorrectedCarrierPhases() {
   const u_int gnssTimeofMeasurement = (message[2]>>6)&0xfffff;
   const double expandedTimeOfMeasurement = z_count*ZCOUNT_SCALE + gnssTimeofMeasurement * .000001;
 
+  last_rx_observation = expandedTimeOfMeasurement;
+
   int m;
   for(m= 3 ; m < msg_len+2 ; m+=2 ) {
     const int multipleMessageIndicator = (message[m] >> 29) & 0x1;
@@ -328,6 +330,8 @@ void RTCM::msgRTKUncorrectedPseudoranges() {
   const u_int smoothingIntervall = (message[2]>>26)&0x3;
   const u_int gnssTimeofMeasurement = (message[2]>>6)&0xfffff;
   const double expandedTimeOfMeasurement = z_count*ZCOUNT_SCALE + gnssTimeofMeasurement * .000001;
+
+  last_rx_observation = expandedTimeOfMeasurement;
 
   int m;
   for(m= 3 ; m < msg_len+2 ; m+=2 ) {

@@ -33,7 +33,7 @@
 #include <time.h>
 
 #include "ros/ros.h"
-#include "std_msgs/ByteMultiArray.h"
+#include "ntrip_client/ByteArray.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "ntrip_client_node");
     ros::NodeHandle node("~");
 
-    ros::Publisher dataTopic = node.advertise<std_msgs::ByteMultiArray>("data", 100);
+    ros::Publisher dataTopic = node.advertise<ntrip_client::ByteArray>("data", 100);
 
     if(node.getParam("server", server) == true) {
         ROS_INFO("Server: %s", server.c_str());
@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
 
             int cstop = 0;
             int pos = 0;
-            std_msgs::ByteMultiArray msg;
+            ntrip_client::ByteArray msg;
             while(!cstop && !error && pos < numbytes) {
                 switch(chunkymode) {
                 case 1: /* reading number starts */
@@ -319,6 +319,7 @@ int main(int argc, char **argv) {
                         i = chunksize;
                     }
 
+                    msg.header.stamp = ros::Time::now();
                     msg.data.insert(msg.data.end(), &(buf[pos]), &(buf[pos + i]));
                     dataTopic.publish(msg);
 

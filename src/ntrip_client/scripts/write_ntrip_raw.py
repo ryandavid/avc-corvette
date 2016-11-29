@@ -2,7 +2,7 @@
 
 import os
 import rospy
-from std_msgs.msg import ByteMultiArray
+from ntrip_client.msg import ByteArray
 import sys
 
 def rxCallback(data):

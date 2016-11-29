@@ -44,7 +44,8 @@ class RTCM : public GPSDecoder {
     ,pfptr(NULL)
     ,ref_x(0.0)
     ,ref_y(0.0)
-    ,ref_z(0.0) {}
+    ,ref_z(0.0)
+    ,last_rx_observation(0.0) {}
 
     // defined as required by baseclass
     void Decode(char* _ptrBuffer=NULL, int _nBufLen=0) {
@@ -59,6 +60,7 @@ class RTCM : public GPSDecoder {
     std::map<uint32_t, uint32_t> rx_msg_counts;
     int msg_type, station_id, z_count, seqno, msg_len, health;
     float ref_x, ref_y, ref_z;
+    double last_rx_observation;
 
   protected:
     // Station ID used in m_lObsList

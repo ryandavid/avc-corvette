@@ -2,6 +2,7 @@ Header header
 
 int16 station_id
 int16 station_health
+float32 last_rx_observation
 
 float32 ref_x
 float32 ref_y
