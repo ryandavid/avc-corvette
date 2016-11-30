@@ -17,14 +17,13 @@ float header_stamp_secs;
 static void rxNtripCallback(const ntrip_client::ByteArray::ConstPtr& data) {
     ROS_DEBUG("Received %lu bytes", data->data.size());
 
-    header_stamp_secs = data->header.stamp.sec;
-
     for(size_t i = 0; i < data->data.size(); i++) {
         decoder->new_byte(data->data[i]);
     }
 }
 
 int main(int argc, char **argv) {
+  float observation_latency = 0.0;
   ros::init(argc, argv, "ntrip_parser_node");
   ros::NodeHandle node("~");
 
@@ -35,16 +34,13 @@ int main(int argc, char **argv) {
 
   ros::Rate rate(1.0);
   while(ros::ok()) {
-    ROS_INFO("Last Observation: %f", decoder->last_rx_observation);
-    ROS_INFO("Msg Header: %d", (int)header_stamp_secs % 3600);
-
     ntrip_parser::DecodedNtrip decodedMsg;
 
     decodedMsg.header.stamp = ros::Time::now();
 
     decodedMsg.station_id = decoder->station_id;
     decodedMsg.station_health = decoder->health;
-    decodedMsg.last_rx_observation = decoder->last_rx_observation;
+    decodedMsg.observation_latency = (decodedMsg.header.stamp.sec % 3600) - decoder->last_rx_observation;
     decodedMsg.ref_x = decoder->ref_x;
     decodedMsg.ref_y = decoder->ref_y;
     decodedMsg.ref_z = decoder->ref_z;
