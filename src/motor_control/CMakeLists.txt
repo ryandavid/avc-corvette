@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -119,9 +120,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(motor_control
-#   src/${PROJECT_NAME}/motor_control.cpp
-# )
+add_library(gpio
+  src/gpio.c
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -133,10 +134,11 @@ add_executable(motor_control_node src/motor_control_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(motor_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(motor_control_node gpio ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(motor_control_node
+  gpio
   ${catkin_LIBRARIES}
 )
 
