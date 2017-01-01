@@ -10,22 +10,10 @@
 #include "sensor_msgs/Joy.h"
 
 #include "motor_control/motor_control_node.h"
-#include "motor_control/gpio.h"
+#include "motor_control/motor_control.h"
 
-#define PI 3.14159265
 
-int fd;
-
-static uint16_t write_to_dac(bool buffered, bool gain, bool shutdown, uint16_t count) {
-  // Assembling it bass-ackwards due to clocking out LSB first.
-  // TODO: Actually use the other flags.
-  uint16_t cmd = ((0x70 + ((count >> 6) & 0x0F)) << 0) + ((count & 0x3F) << 10);
-
-  if (write(fd, &cmd, sizeof(cmd)) != sizeof(cmd)) {
-    ROS_ERROR("Write Error!");
-  }
-
-}
+motor_control* ctrl;
 
 static void rxJoystickCallback(const sensor_msgs::Joy::ConstPtr& data) {
   static int8_t last_motor_direction = -1;
@@ -46,35 +34,29 @@ static void rxJoystickCallback(const sensor_msgs::Joy::ConstPtr& data) {
   //  4 : Left Bumper
   //  5 : Right Bumper
 
-  uint16_t dac_count = ((uint32_t)abs(data->axes[1])) >> 5;
+  // Use the left stick as our input and flip the polarity.
+  int32_t rx_value = (int32_t)data->axes[1] * -1;
 
-  // Introduce some deadband.
-  if(dac_count < 75) {
-    dac_count = 0;
+
+  // Probably not needed, but clamp the rx'ed values to our rails.
+  if(rx_value > kJoystickAxisMax) {
+    rx_value = kJoystickAxisMax;
+  } else if(rx_value < kJoystickAxisMin) {
+    rx_value = kJoystickAxisMin;
   }
 
-  // Make sure we don't overflow.
-  if(dac_count > 1023) {
-    dac_count = 1023;
+  // Introduce some deadband since the joysticks never return to zero.
+  if(abs(rx_value) < kJoystickDeadband) {
+    rx_value = 0;
   }
 
-  // Note ! since the joystick polarity is opposite polarity than you'd expect.
-  bool motor_reverse = !(data->axes[1] < 0);
-
-  // If we swapped the desired direction, flip the GPIOs accordingly.
-  if(last_motor_direction != motor_reverse) {
-    last_motor_direction = motor_reverse;
-
-    if(motor_reverse) {
-      gpio_set_value(kMotorAForwardGPIO, false);
-      gpio_set_value(kMotorAReverseGPIO, true);
-    } else {
-      gpio_set_value(kMotorAForwardGPIO, true);
-      gpio_set_value(kMotorAReverseGPIO, false);
-    }
+  // Now scale it to +/-100% range.
+  int16_t motor_speed = (abs(rx_value) / kJoystickAxisMax) * 100;
+  if(rx_value < 0) {
+    motor_speed *= -1;
   }
 
-  write_to_dac(true, true, true, dac_count);
+  ctrl->set_motor_speed(MOTOR_RIGHT, motor_speed);
 }
 
 
@@ -86,61 +68,37 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "motor_controller_node");
   ros::NodeHandle node("~");
 
-  fd = open("/dev/spidev1.0", O_RDWR);
-  if (fd <= 0) {
-    ROS_ERROR("Could not open SPI port.");
-    exit(1);
+  ROS_INFO("Setting up GPIO");
+  ctrl = new motor_control();
+
+  tMotorControlReturnCode success = ctrl->init();
+  switch(success) {
+    case(MOTOR_SUCCESS):
+      ROS_INFO("Successfully set up motor control");
+      break;
+
+    case(MOTOR_ERROR_SPI_DEV):
+      ROS_FATAL("Failed setting up motor control - SPI Device");
+      return -1;
+      break;
+
+    case(MOTOR_ERROR_GPIO):
+      ROS_FATAL("Failed setting up motor control - GPIO");
+      return -1;
+      break;
+
+    default:
+      ROS_FATAL("Failed setting up motor control - Unknown Error");
+      return -1;
+      break;
   }
 
-  if(gpio_export(kMotorAForwardGPIO) || gpio_export(kMotorAReverseGPIO) ||
-     gpio_export(kMotorBForwardGPIO) || gpio_export(kMotorBReverseGPIO)) {
-    ROS_ERROR("Failed to setup GPIO pins!");
-    exit(1);
-  }
-
-  // Need to wait some time to let udev perform the chgrp on the newly exported pins.
-  ROS_INFO("Exported GPIOs.");
-  ros::Duration(0.5).sleep();
-
-  if(gpio_set_dir(kMotorAForwardGPIO, true) || gpio_set_dir(kMotorAReverseGPIO, true) ||
-     gpio_set_dir(kMotorBForwardGPIO, true) || gpio_set_dir(kMotorBReverseGPIO, true)) {
-    ROS_ERROR("Failed to set direction on GPIO pins!");
-    exit(1);
-  }
-
-  if(gpio_set_value(kMotorAForwardGPIO, false) || gpio_set_value(kMotorAReverseGPIO, false) ||
-     gpio_set_value(kMotorBForwardGPIO, false) || gpio_set_value(kMotorBReverseGPIO, false)) {
-    ROS_ERROR("Failed to set value on GPIO pins!");
-    exit(1);
-  }
-
-  ROS_INFO("Completed setting initial GPIO states.");
-
+  ROS_INFO("Subscribing to the joystick topic.");
   ros::Subscriber joyTopic = node.subscribe<sensor_msgs::Joy>("/joy0", 10, rxJoystickCallback);
-
-  ros::Rate rate(100);
-
-  ROS_INFO("Starting to write to DAC.");
-  /*while(ros::ok()) {
-    // Generate a sine wave, biased halfway through the DAC count range.
-    //count_to_write = (uint32_t)((sin(count * (PI / 180)) * 512.0) + 512.0);
-    //dac_cmd = write_to_dac(true, true, true, count_to_write);
-
-    ros::spinOnce();
-    rate.sleep();
-  }*/
 
   ros::spin();
 
-  // Make sure we are always setting the output to zero on exit.
-  // TODO: Place DAC into Hi-Z mode.
-  write_to_dac(true, true, true, 0);
-
-  // Disable all direction control GPIOs.
-  gpio_set_value(kMotorAForwardGPIO, false);
-  gpio_set_value(kMotorAReverseGPIO, false);
-  gpio_set_value(kMotorBForwardGPIO, false);
-  gpio_set_value(kMotorBReverseGPIO, false);
-
+  ROS_INFO("Cleaning up!");
+  delete ctrl;
   return 0;
 } 
