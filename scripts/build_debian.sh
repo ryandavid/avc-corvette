@@ -30,7 +30,7 @@ cp -r $PROJECT_ROOT/install/* $WORKDIR/$DESTDIR
 
 # Make the DEBIAN folder and required control file.
 mkdir -p $DEBIANDIR
-cp $PROJECT_ROOT/control $DEBIANDIR
+cp $SCRIPT_DIR/control $DEBIANDIR
 
 # Actually build the debian.
 dpkg-deb --build $WORKDIR $PROJECT_ROOT/avc-corvette.deb
