@@ -1,0 +1,8 @@
+Package: avc-corvette
+Version: 1.0
+Section: base
+Priority: optional
+Architecture: amd64
+Depends: 
+Maintainer: Your Name <you@email.com>
+Description: Sparkfun AVC Entry, Powerwheels Corvette
