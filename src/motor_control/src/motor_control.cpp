@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 #include "motor_control/gpio.h"
 #include "motor_control/motor_control.h"
