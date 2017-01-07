@@ -29,7 +29,7 @@ and add the following:
 `sudo sh -c "echo BB-SPI1-01 > /sys/devices/bone_capemgr.9/slots"`
 
 ## Update and install deps
-`sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y python-pip sbcl-source sbcl-doc liburiparser1`
+`sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y python-pip sbcl-source sbcl-doc liburiparser1 libsdl2-dev libncurses5-dev`
 
 ## GPIO udev
 Set permissions of the GPIO so root is not required. From (http://www.embeddedhobbyist.com/2016/05/beaglebone-black-gpio-permissions/)
