@@ -12,6 +12,7 @@ fi
 
 PROJECT_ROOT=$(dirname $SCRIPT_DIR)
 
+OUTPUT_DEB_NAME="${1:-avc-corvette.deb}"
 
 WORKDIR=$PROJECT_ROOT/debian
 DESTDIR=/usr/local/avc
@@ -33,7 +34,7 @@ mkdir -p $DEBIANDIR
 cp $SCRIPT_DIR/control $DEBIANDIR
 
 # Actually build the debian.
-dpkg-deb --build $WORKDIR $PROJECT_ROOT/avc-corvette.deb
+dpkg-deb --build $WORKDIR $PROJECT_ROOT/$OUTPUT_DEB_NAME
 
 # Clean up after ourselves.
 rm -rf $WORKDIR
