@@ -8,6 +8,7 @@
 #include <map>
 #include <iostream>
 #include <sys/types.h>
+#include <stdint.h>
 
 class RTCM : public GPSDecoder {
   public:
