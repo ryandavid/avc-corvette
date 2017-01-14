@@ -47,11 +47,19 @@ tMotorControlReturnCode motor_control::init() {
         return MOTOR_ERROR_SPI_DEV;
     }
 
+    fd_left_spi_dev_ = open(spi_dev_left_dac_, O_RDWR);
+    if (fd_left_spi_dev_ <= 0) {
+        return MOTOR_ERROR_SPI_DEV;
+    }
+
     // Ensure that the GPIOs are exported into userland.
     if(gpio_export(gpio_motor_right_fwd_) || gpio_export(gpio_motor_right_rev_) ||
        gpio_export(gpio_motor_left_fwd_) || gpio_export(gpio_motor_left_rev_)) {
         return MOTOR_ERROR_GPIO;
     }
+
+    // We need to wait some time for udev to set the permissions of the newly exported GPIOs.
+    usleep(kInitSleepTimeUsecs);
 
     // Set the pins to all outputs.
     if(gpio_set_dir(gpio_motor_right_fwd_, GPIO_DIR_OUTPUT) || gpio_set_dir(gpio_motor_right_rev_, GPIO_DIR_OUTPUT) ||
@@ -107,7 +115,7 @@ tMotorControlReturnCode motor_control::set_motor_speed(tMotorSelection motor, in
 
     // We need to convert the desired motor speed to DAC counts.
     // Since the direction control is handled by GPIO, use the absolute value.
-    uint16_t counts = (abs(motor_speed) / kMotorSpeedMaxPercent) * kMaxDacRange;
+    uint16_t counts = (uint16_t)((double)(abs(motor_speed) / (double)kMotorSpeedMaxPercent) * (double)kMaxDacRange);
 
     if(write_to_dac(fd_spi_dev, true, true, true, counts) == true) {
         return MOTOR_SUCCESS;

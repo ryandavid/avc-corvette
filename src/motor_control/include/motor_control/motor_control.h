@@ -21,6 +21,9 @@ enum tMotorControlReturnCode {
 const int kMotorSpeedMaxPercent = 100;
 const int kMotorSpeedMinPercent = -100;
 
+// Wait 500ms during GPIO init.
+const int kInitSleepTimeUsecs = 500000;
+
 // The DAC is 10-bit, so... 2^10 - 1
 const int kMaxDacRange = 1023;
 

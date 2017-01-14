@@ -6,6 +6,6 @@ const int kJoystickAxisMax = 32767;
 const int kJoystickAxisMin = -32767;
 
 // The amount of counts from the joystick to assume its neutral.
-const int kJoystickDeadband = 75;
+const int kJoystickDeadband = 1575;
 
 #endif

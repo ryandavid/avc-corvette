@@ -35,7 +35,7 @@ static void rxJoystickCallback(const sensor_msgs::Joy::ConstPtr& data) {
   //  5 : Right Bumper
 
   // Use the left stick as our input and flip the polarity.
-  int32_t rx_value = (int32_t)data->axes[1] * -1;
+  int32_t rx_value = data->axes[1] * -1;
 
 
   // Probably not needed, but clamp the rx'ed values to our rails.
@@ -51,12 +51,9 @@ static void rxJoystickCallback(const sensor_msgs::Joy::ConstPtr& data) {
   }
 
   // Now scale it to +/-100% range.
-  int16_t motor_speed = (abs(rx_value) / kJoystickAxisMax) * 100;
-  if(rx_value < 0) {
-    motor_speed *= -1;
-  }
-
+  int16_t motor_speed = (int16_t)(((double)rx_value / (double)kJoystickAxisMax) * 100.0f);
   ctrl->set_motor_speed(MOTOR_RIGHT, motor_speed);
+  ctrl->set_motor_speed(MOTOR_LEFT, motor_speed);
 }
 
 
@@ -74,21 +71,21 @@ int main(int argc, char **argv) {
   tMotorControlReturnCode success = ctrl->init();
   switch(success) {
     case(MOTOR_SUCCESS):
-      ROS_INFO("Successfully set up motor control");
+      ROS_INFO("Successfully set up motor control.");
       break;
 
     case(MOTOR_ERROR_SPI_DEV):
-      ROS_FATAL("Failed setting up motor control - SPI Device");
+      ROS_FATAL("Failed setting up motor control - SPI Device.");
       return -1;
       break;
 
     case(MOTOR_ERROR_GPIO):
-      ROS_FATAL("Failed setting up motor control - GPIO");
+      ROS_FATAL("Failed setting up motor control - GPIO.");
       return -1;
       break;
 
     default:
-      ROS_FATAL("Failed setting up motor control - Unknown Error");
+      ROS_FATAL("Failed setting up motor control - Unknown Error.");
       return -1;
       break;
   }
@@ -101,4 +98,4 @@ int main(int argc, char **argv) {
   ROS_INFO("Cleaning up!");
   delete ctrl;
   return 0;
-} 
+}
