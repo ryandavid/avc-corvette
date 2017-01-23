@@ -102,7 +102,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES ntrip_parser
-#  CATKIN_DEPENDS roscpp
+   CATKIN_DEPENDS roscpp ntrip_client
 #  DEPENDS system_lib
 )
 
@@ -134,7 +134,7 @@ add_executable(ntrip_parser_node src/ntrip_client_parser.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(ntrip_parser_node ntrip_client ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(ntrip_parser_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ntrip_parser_node

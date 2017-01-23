@@ -99,7 +99,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-    INCLUDE_DIRS include
+#   INCLUDE_DIRS include
 #   LIBRARIES pru_example
     CATKIN_DEPENDS roscpp pru_utils
 #   DEPENDS
@@ -113,7 +113,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-    include
     ${catkin_INCLUDE_DIRS}
 )
 
@@ -141,7 +140,7 @@ add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(PRU_memAccessPRUDataRam prussdrv pasm compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(PRU_memAccessPRUDataRam compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(PRU_memAccessPRUDataRam
