@@ -21,12 +21,14 @@ Use the following Ubuntu image.  I couldn't get the newer Ubuntu 16.04 images to
 
 `sudo cp *.dtbo /lib/firmware`
 
-### Enable SPIDEV on boot
+### Enable SPIDEV and PRU on boot
 The right way to do this is add it to the uEnv.txt, but I can't seem to compile the DTCs into the initramfs. Instead:
 `sudo nano /etc/rc.local`
 and add the following:
 `sudo sh -c "echo BB-SPI0-01 > /sys/devices/bone_capemgr.9/slots"`
 `sudo sh -c "echo BB-SPI1-01 > /sys/devices/bone_capemgr.9/slots"`
+`sudo sh -c "modprobe uio_pruss"`
+`sudo sh -c "echo BB-PRU-GPIO > /sys/devices/bone_capemgr.9/slots"`
 
 ## Update and install deps
 `sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install -y python-pip sbcl-source sbcl-doc liburiparser1 libsdl2-dev libncurses5-dev`
@@ -82,5 +84,11 @@ Add ROS env to bashrc
 `chmod +x ti_cgt_pru_2.1.4_armlinuxa8hf_busybox_installer.sh`
 `sudo ./ti_cgt_pru_2.1.4_armlinuxa8hf_busybox_installer.sh`
 
+Add udev rule to change uio permissions
+`sudo nano /etc/udev/rules.d/98-uio.rules`
+and add the 
+`SUBSYSTEM=="uio", GROUP="users", MODE="0660"`
+and then reload the rules
+`sudo udevadm control --reload-rules`
 
 

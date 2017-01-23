@@ -61,3 +61,6 @@ ntrip_client_password.launch
 # Compiled Device Tree Overlays
 .dtbo
 
+# Compiled PRU Firmware
+.bin
+

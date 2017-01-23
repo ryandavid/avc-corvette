@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pru_utils)
+project(pru_example)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
+    roscpp
+    pru_utils
 )
 
 ## System dependencies are found with CMake's conventions
@@ -99,9 +100,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
     INCLUDE_DIRS include
-    LIBRARIES prussdrv
-    CATKIN_DEPENDS roscpp
-#   DEPENDS system_lib
+#   LIBRARIES pru_example
+    CATKIN_DEPENDS roscpp pru_utils
+#   DEPENDS
 )
 
 ###########
@@ -117,32 +118,35 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(prussdrv
-    src/prussdrv.c
-)
+# add_library(pru_example
+#   src/${PROJECT_NAME}/pru_example.cpp
+# )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(pru_loader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(pru_example ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-## Declare a C++ executable
-add_executable(pru_loader src/loader.c)
-add_dependencies(pru_loader prussdrv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pru_loader prussdrv ${catkin_LIBRARIES})
 
-add_executable(pasm
-    src/pasm.c
-    src/pasmpp.c
-    src/pasmexp.c
-    src/pasmop.c
-    src/pasmdot.c
-    src/pasmstruct.c
-    src/pasmmacro.c
-    src/path_utils.c
+add_custom_target(compile_pru_asm
+  COMMAND ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.p ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMENT "Running pasm. ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.c ${CMAKE_CURRENT_SOURCE_DIR}"
+#  SOURCES ${test2_SOURCES}
 )
 
-target_link_libraries(pasm ${catkin_LIBRARIES})
+
+## Declare a C++ executable
+add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
+
+## Add cmake target dependencies of the executable
+## same as for the library above
+add_dependencies(PRU_memAccessPRUDataRam prussdrv pasm compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(PRU_memAccessPRUDataRam
+    ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
@@ -159,11 +163,11 @@ target_link_libraries(pasm ${catkin_LIBRARIES})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS pru_loader prussdrv
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS pru_example pru_example_node
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
@@ -184,7 +188,7 @@ install(TARGETS pru_loader prussdrv
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_pru_app_loader.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_pru_example.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
