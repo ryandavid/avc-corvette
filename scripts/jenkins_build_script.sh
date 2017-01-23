@@ -16,7 +16,7 @@ PKG_SCRATCH=/tmp/avc-corvette
 
 # BeagleBone Black, Ubuntu 14.04
 if [[ ( "$ARCH" == "armv7l" ) && ( "$OS_TYPE" == "Linux" ) ]]; then
-    CATKIN_CONFIG_FLAGS="--whitelist motor_control"
+    CATKIN_CONFIG_FLAGS="--whitelist motor_control pru_utils pru_example"
     ARCH_STRING="armhf"
     # Packagecloud Distro ID 20 = Ubuntu 14.04.
     PC_DISTRO=20
