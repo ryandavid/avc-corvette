@@ -57,3 +57,7 @@ CATKIN_IGNORE
 
 # Sensitive launch files
 ntrip_client_password.launch
+
+# Compiled Device Tree Overlays
+.dtbo
+

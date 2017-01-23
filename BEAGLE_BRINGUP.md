@@ -76,3 +76,11 @@ Only install the robot variant in order to save space.
 
 Add ROS env to bashrc
 `echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc`
+
+## Install PRU C Compiler
+`wget http://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/2.1.4/ti_cgt_pru_2.1.4_armlinuxa8hf_busybox_installer.sh`
+`chmod +x ti_cgt_pru_2.1.4_armlinuxa8hf_busybox_installer.sh`
+`sudo ./ti_cgt_pru_2.1.4_armlinuxa8hf_busybox_installer.sh`
+
+
+
