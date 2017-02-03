@@ -124,12 +124,12 @@ add_library(prussdrv
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(pru_loader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(loader ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(pru_loader src/loader.c)
-add_dependencies(pru_loader prussdrv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pru_loader prussdrv ${catkin_LIBRARIES})
+add_executable(loader src/loader.c)
+add_dependencies(loader prussdrv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(loader prussdrv ${catkin_LIBRARIES})
 
 add_executable(pasm
     src/pasm.c
@@ -159,7 +159,7 @@ target_link_libraries(pasm ${catkin_LIBRARIES})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS pru_loader prussdrv
+install(TARGETS loader prussdrv
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -127,25 +127,56 @@ include_directories(
 # add_dependencies(pru_example ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-add_custom_target(compile_pru_asm
-  COMMAND ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.p ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Running pasm. ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.c ${CMAKE_CURRENT_SOURCE_DIR}"
+#add_custom_target(compile_pru_asm
+#  COMMAND ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.p ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam
+#  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#  COMMENT "Running pasm. ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.c ${CMAKE_CURRENT_SOURCE_DIR}"
 #  SOURCES ${test2_SOURCES}
+#)
+
+
+add_custom_command(OUTPUT main.d
+    COMMAND clpru -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/ \
+        -I=${CMAKE_CURRENT_SOURCE_DIR}/include/pru_icss -I=/usr/share/ti/cgt-pru/include/ \
+        --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number \
+        --hardware_mac=on --endian=little --preproc_with_compile --preproc_dependency=main.d ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
+    COMMENT "Compiling with clpru: ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+    VERBATIM
 )
+
+add_custom_command(OUTPUT main.obj
+    COMMAND clpru -v3 -Ooff --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off \
+        --display_error_number --hardware_mac=on --endian=little -z -mmain.map --heap_size=0x100 \
+        --stack_size=0x100 -i/usr/share/ti/cgt-pru/lib/ -i/usr/share/ti/cgt-pru/include/ --reread_libs \
+        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=main.xml --rom_model -o main.out \
+        main.obj ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_PRU.cmd -llibc.a
+    COMMENT "Linking with clpru: ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+    DEPENDS main.d
+    VERBATIM
+)
+
+add_custom_target(hexpru ALL
+    COMMAND hexpru ${CMAKE_CURRENT_SOURCE_DIR}/src/bin.cmd main.out
+    COMMENT "Generating binaries with hexpru."
+    DEPENDS main.obj
+    VERBATIM
+)
+
 
 
 ## Declare a C++ executable
-add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
+#add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(PRU_memAccessPRUDataRam compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(PRU_memAccessPRUDataRam compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(PRU_memAccessPRUDataRam
-    ${catkin_LIBRARIES}
-)
+#target_link_libraries(PRU_memAccessPRUDataRam
+#    ${catkin_LIBRARIES}
+#)
+
+
 
 #############
 ## Install ##
