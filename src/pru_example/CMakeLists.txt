@@ -9,6 +9,37 @@ find_package(catkin REQUIRED COMPONENTS
     pru_utils
 )
 
+# Find the TI PRU C compilers.
+if(EXISTS "/opt/ti/ti-cgt-pru_2.1.4")
+    set(TI_PRU_ROOT "/opt/ti/ti-cgt-pru_2.1.4")
+elseif(EXISTS "/usr/share/ti/cgt-pru")
+    set(TI_PRU_ROOT "/opt/ti/ti-cgt-pru_2.1.4")
+else()
+    message(FATAL_ERROR "Could not find root of TI PRU install.")
+endif()
+
+set(TI_PRU_LIB_DIR "${TI_PRU_ROOT}/lib")
+set(TI_PRU_INCLUDE_DIR "${TI_PRU_ROOT}/include")
+
+# Check that the bin directory actually exists.  On the ARM installs,
+# the binaries are installed under /usr/bin.
+if(EXISTS "${TI_PRU_ROOT}/bin")
+    set(TI_PRU_BIN_DIR "${TI_PRU_ROOT}/bin")
+else()
+    set(TI_PRU_BIN_DIR "/usr/bin")
+endif()
+
+# Now actually try and find the compilers we need.
+find_program(CLPRU clpru PATHS ${TI_PRU_BIN_DIR})
+if(NOT CLPRU)
+    message(FATAL_ERROR "clpru was not found but is required!")
+endif()
+
+find_program(HEXPRU hexpru PATHS ${TI_PRU_BIN_DIR})
+if(NOT HEXPRU)
+    message(FATAL_ERROR "hexpru was not found but is required!")
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -135,34 +166,33 @@ include_directories(
 #)
 
 
-add_custom_command(OUTPUT main.d
-    COMMAND clpru -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/ \
-        -I=${CMAKE_CURRENT_SOURCE_DIR}/include/pru_icss -I=/usr/share/ti/cgt-pru/include/ \
-        --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number \
-        --hardware_mac=on --endian=little --preproc_with_compile --preproc_dependency=main.d ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
-    COMMENT "Compiling with clpru: ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+add_custom_target(pru_motor_control_compile ALL
+    COMMAND ${CLPRU} -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/
+        -I=${CMAKE_CURRENT_SOURCE_DIR}/include/pru_icss -I=${TI_PRU_INCLUDE_DIR}
+        --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number
+        --hardware_mac=on --endian=little --preproc_with_compile
+        --preproc_dependency=main.d ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
+    COMMENT "Compiling with clpru"
     VERBATIM
 )
 
-add_custom_command(OUTPUT main.obj
-    COMMAND clpru -v3 -Ooff --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off \
-        --display_error_number --hardware_mac=on --endian=little -z -mmain.map --heap_size=0x100 \
-        --stack_size=0x100 -i/usr/share/ti/cgt-pru/lib/ -i/usr/share/ti/cgt-pru/include/ --reread_libs \
-        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=main.xml --rom_model -o main.out \
+add_custom_target(pru_motor_control_link ALL
+    COMMAND ${CLPRU} -v3 -Ooff --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off
+        --display_error_number --hardware_mac=on --endian=little -z -mmain.map --heap_size=0x100
+        --stack_size=0x100 -i${TI_PRU_LIB_DIR} -i${TI_PRU_INCLUDE_DIR} --reread_libs
+        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=main.xml --rom_model -o main.out
         main.obj ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_PRU.cmd -llibc.a
-    COMMENT "Linking with clpru: ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
-    DEPENDS main.d
+    COMMENT "Linking with clpru"
+    DEPENDS pru_motor_control_compile
     VERBATIM
 )
 
-add_custom_target(hexpru ALL
-    COMMAND hexpru ${CMAKE_CURRENT_SOURCE_DIR}/src/bin.cmd main.out
+add_custom_target(pru_motor_control_binaries ALL
+    COMMAND ${HEXPRU} ${CMAKE_CURRENT_SOURCE_DIR}/src/bin.cmd main.out
     COMMENT "Generating binaries with hexpru."
-    DEPENDS main.obj
+    DEPENDS pru_motor_control_link
     VERBATIM
 )
-
-
 
 ## Declare a C++ executable
 #add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
@@ -207,11 +237,11 @@ add_custom_target(hexpru ALL
 # )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
+install(FILES
+    ${CMAKE_BINARY_DIR}/main_data.bin
+    ${CMAKE_BINARY_DIR}/main_text.bin
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
 
 #############
 ## Testing ##
