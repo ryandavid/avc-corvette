@@ -37,7 +37,7 @@
    // Beware: Many other PRU EGP pins are reserved by HDMI or onboard flash, which  
    // would need to be disabled first by editing uEnv.txt and rebooting.  
    exclusive-use =  
-      "P8.11", "P8.16", "pru0";  
+      "P8.11", "P8.12", "P8.15", "P8.16", "pru0", "pru1";  
    
    fragment@0 {  
     target = <&am33xx_pinmux>;  
@@ -58,9 +58,16 @@
        // For P8_16, we want it to be an input, so we also set bit 5, yielding  
        // a value of 0x26. We could also set bits 3 and 4 to enable a pullup  
        // or pulldown.  
+
+       // Bit 5 (Msb): 0 = Output, 1 = Input
+       // Bit 4      : 0 = Pulldown, 1 = Pullup
+       // Bit 3      : 0 = Pullup/down Enabled, 1=Pullup/down Disabled
+       // Bits 2,1,0 : Pin Mode
        pinctrl-single,pins = <  
-         0x34 0x06  
-         0x38 0x26  
+         0x34 0x06    // B8_11, Output
+         0x30 0x06    // B8_12, Output
+         0x3C 0x26    // B5_15, Input
+         0x38 0x26    // B8_16, Input
        >;  
       };  
     };  
