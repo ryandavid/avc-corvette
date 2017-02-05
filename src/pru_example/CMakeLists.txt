@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
 if(EXISTS "/opt/ti/ti-cgt-pru_2.1.4")
     set(TI_PRU_ROOT "/opt/ti/ti-cgt-pru_2.1.4")
 elseif(EXISTS "/usr/share/ti/cgt-pru")
-    set(TI_PRU_ROOT "/opt/ti/ti-cgt-pru_2.1.4")
+    set(TI_PRU_ROOT "/usr/share/ti/cgt-pru")
 else()
     message(FATAL_ERROR "Could not find root of TI PRU install.")
 endif()
