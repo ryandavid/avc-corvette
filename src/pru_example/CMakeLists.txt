@@ -40,6 +40,15 @@ if(NOT HEXPRU)
     message(FATAL_ERROR "hexpru was not found but is required!")
 endif()
 
+# XXD is required to convert the Text and Data bins to C Headers.
+find_program(XXD xxd PATHS "/usr/bin")
+if(NOT XXD)
+    message(FATAL_ERROR "xxd was not found but is required!")
+endif()
+
+set(PRU_MAIN_BASE_NAME "pru_main")
+set(GENERATED_HEADERS_DIR "${CMAKE_BINARY_DIR}/generated_headers")
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -130,7 +139,7 @@ endif()
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#   INCLUDE_DIRS include
+    INCLUDE_DIRS include
 #   LIBRARIES pru_example
     CATKIN_DEPENDS roscpp pru_utils
 #   DEPENDS
@@ -144,6 +153,10 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+    include
+
+    # Hacky, to pick up the 'generated_headers' include.
+    ${CMAKE_BINARY_DIR}
     ${catkin_INCLUDE_DIRS}
 )
 
@@ -157,54 +170,52 @@ include_directories(
 ## either from message generation or dynamic reconfigure
 # add_dependencies(pru_example ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-
-#add_custom_target(compile_pru_asm
-#  COMMAND ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.p ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam
-#  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#  COMMENT "Running pasm. ${CATKIN_DEVEL_PREFIX}/../pru_utils/lib/pru_utils/pasm -V3 ${CMAKE_CURRENT_SOURCE_DIR}/src/PRU_memAccessPRUDataRam.c ${CMAKE_CURRENT_SOURCE_DIR}"
-#  SOURCES ${test2_SOURCES}
-#)
-
-
-add_custom_target(pru_motor_control_compile ALL
+# Step to compile, link, and generate C headers for the PRU.
+add_custom_target(generate_pru_headers ALL
+    # Compile.
     COMMAND ${CLPRU} -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/
         -I=${CMAKE_CURRENT_SOURCE_DIR}/include/pru_icss -I=${TI_PRU_INCLUDE_DIR}
         --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number
         --hardware_mac=on --endian=little --preproc_with_compile
-        --preproc_dependency=main.d ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
-    COMMENT "Compiling with clpru"
-    VERBATIM
-)
+        --preproc_dependency=${PRU_MAIN_BASE_NAME}.d ${CMAKE_CURRENT_SOURCE_DIR}/src/${PRU_MAIN_BASE_NAME}.c
 
-add_custom_target(pru_motor_control_link ALL
+    # Link.
     COMMAND ${CLPRU} -v3 -Ooff --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off
         --display_error_number --hardware_mac=on --endian=little -z -mmain.map --heap_size=0x100
         --stack_size=0x100 -i${TI_PRU_LIB_DIR} -i${TI_PRU_INCLUDE_DIR} --reread_libs
-        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=main.xml --rom_model -o main.out
-        main.obj ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_PRU.cmd -llibc.a
-    COMMENT "Linking with clpru"
-    DEPENDS pru_motor_control_compile
-    VERBATIM
-)
+        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=${PRU_MAIN_BASE_NAME}.xml
+        --rom_model -o ${PRU_MAIN_BASE_NAME}.out ${PRU_MAIN_BASE_NAME}.obj
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_PRU.cmd -llibc.a
 
-add_custom_target(pru_motor_control_binaries ALL
-    COMMAND ${HEXPRU} ${CMAKE_CURRENT_SOURCE_DIR}/src/bin.cmd main.out
-    COMMENT "Generating binaries with hexpru."
-    DEPENDS pru_motor_control_link
+    # Make target directory for generated headers.
+    COMMAND mkdir -p ${GENERATED_HEADERS_DIR}
+
+    # Convert OBJ to Text and Data binaries.
+    COMMAND ${HEXPRU} ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_hexpru.cmd ${PRU_MAIN_BASE_NAME}.out
+            -o ${PRU_MAIN_BASE_NAME}_text.bin
+            -o ${PRU_MAIN_BASE_NAME}_data.bin
+
+    # Convert Text and Data binaries to C headers.
+    COMMAND ${XXD} -i ${PRU_MAIN_BASE_NAME}_text.bin >
+        ${GENERATED_HEADERS_DIR}/${PRU_MAIN_BASE_NAME}_text.h
+    COMMAND ${XXD} -i ${PRU_MAIN_BASE_NAME}_data.bin >
+        ${GENERATED_HEADERS_DIR}/${PRU_MAIN_BASE_NAME}_data.h
+
+    COMMENT "Generating PRU headers."
     VERBATIM
 )
 
 ## Declare a C++ executable
-#add_executable(PRU_memAccessPRUDataRam src/PRU_memAccessPRUDataRam.c)
+add_executable(pru_example src/main.c)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-#add_dependencies(PRU_memAccessPRUDataRam compile_pru_asm ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(pru_example generate_pru_headers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-#target_link_libraries(PRU_memAccessPRUDataRam
-#    ${catkin_LIBRARIES}
-#)
+target_link_libraries(pru_example
+    ${catkin_LIBRARIES}
+)
 
 
 
@@ -223,11 +234,11 @@ add_custom_target(pru_motor_control_binaries ALL
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS pru_example pru_example_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS pru_example
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
@@ -237,11 +248,11 @@ add_custom_target(pru_motor_control_binaries ALL
 # )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
-install(FILES
-    ${CMAKE_BINARY_DIR}/main_data.bin
-    ${CMAKE_BINARY_DIR}/main_text.bin
-    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+#install(FILES
+#    ${CMAKE_BINARY_DIR}/main_data.bin
+#    ${CMAKE_BINARY_DIR}/main_text.bin
+#    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#)
 
 #############
 ## Testing ##
