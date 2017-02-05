@@ -49,6 +49,13 @@ endif()
 set(PRU_MAIN_BASE_NAME "pru_main")
 set(GENERATED_HEADERS_DIR "${CMAKE_BINARY_DIR}/generated_headers")
 
+# Kind of hacky.  Make the assumption that the first directory path returned
+# is the include folder for pru_utils.
+list(GET pru_utils_INCLUDE_DIRS 0 PRU_ICSS_LIB)
+if(NOT PRU_ICSS_LIB)
+    message(FATAL_ERROR "Missing the PRU ICSS Lib dir!")
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -174,7 +181,7 @@ include_directories(
 add_custom_target(generate_pru_headers ALL
     # Compile.
     COMMAND ${CLPRU} -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/
-        -I=${CMAKE_CURRENT_SOURCE_DIR}/include/pru_icss -I=${TI_PRU_INCLUDE_DIR}
+        -I=${PRU_ICSS_LIB}/pru_icss -I=${TI_PRU_INCLUDE_DIR}
         --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number
         --hardware_mac=on --endian=little --preproc_with_compile
         --preproc_dependency=${PRU_MAIN_BASE_NAME}.d ${CMAKE_CURRENT_SOURCE_DIR}/src/${PRU_MAIN_BASE_NAME}.c
