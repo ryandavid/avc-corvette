@@ -153,10 +153,11 @@ target_link_libraries(pasm ${catkin_LIBRARIES})
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+#install(PROGRAMS
+#  scripts/AM335x_hexpru.cmd
+#  scripts/AM335x_PRU.cmd
+#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## Mark executables and/or libraries for installation
 install(TARGETS loader prussdrv
@@ -168,7 +169,6 @@ install(TARGETS loader prussdrv
 ## Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
   PATTERN ".svn" EXCLUDE
 )
 

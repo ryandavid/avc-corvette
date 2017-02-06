@@ -9,55 +9,13 @@ find_package(catkin REQUIRED COMPONENTS
     pru_utils
 )
 
-# Find the TI PRU C compilers.
-if(EXISTS "/opt/ti/ti-cgt-pru_2.1.4")
-    set(TI_PRU_ROOT "/opt/ti/ti-cgt-pru_2.1.4")
-elseif(EXISTS "/usr/share/ti/cgt-pru")
-    set(TI_PRU_ROOT "/usr/share/ti/cgt-pru")
-else()
-    message(FATAL_ERROR "Could not find root of TI PRU install.")
-endif()
+# Add custom CMake modules.
+get_filename_component(ROOT_SRC_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${ROOT_SRC_DIR}/cmake/")
 
-set(TI_PRU_LIB_DIR "${TI_PRU_ROOT}/lib")
-set(TI_PRU_INCLUDE_DIR "${TI_PRU_ROOT}/include")
+find_package(TICGTPRU REQUIRED)
 
-# Check that the bin directory actually exists.  On the ARM installs,
-# the binaries are installed under /usr/bin.
-if(EXISTS "${TI_PRU_ROOT}/bin")
-    set(TI_PRU_BIN_DIR "${TI_PRU_ROOT}/bin")
-else()
-    set(TI_PRU_BIN_DIR "/usr/bin")
-endif()
-
-# Now actually try and find the compilers we need.
-find_program(CLPRU clpru PATHS ${TI_PRU_BIN_DIR})
-if(NOT CLPRU)
-    message(FATAL_ERROR "clpru was not found but is required!")
-endif()
-
-find_program(HEXPRU hexpru PATHS ${TI_PRU_BIN_DIR})
-if(NOT HEXPRU)
-    message(FATAL_ERROR "hexpru was not found but is required!")
-endif()
-
-# XXD is required to convert the Text and Data bins to C Headers.
-find_program(XXD xxd PATHS "/usr/bin")
-if(NOT XXD)
-    message(FATAL_ERROR "xxd was not found but is required!")
-endif()
-
-set(PRU_MAIN_BASE_NAME "pru_main")
 set(GENERATED_HEADERS_DIR "${CMAKE_BINARY_DIR}/generated_headers")
-
-# Super hacky.  Make the assumption that the first directory path returned
-# is the include folder for pru_utils.
-list(GET pru_utils_INCLUDE_DIRS 0 PRU_ICSS_INCLUDE_DIR)
-if(NOT PRU_ICSS_INCLUDE_DIR)
-    message(FATAL_ERROR "Missing the PRU ICSS include dir!")
-else()
-    set(PRU_ICSS_INCLUDE_DIR "${PRU_ICSS_INCLUDE_DIR}/pru_utils/pru_icss")
-    message("Using '${PRU_ICSS_INCLUDE_DIR}' as PRU_ICSS_INCLUDE_DIR. ")
-endif()
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -181,46 +139,14 @@ include_directories(
 # add_dependencies(pru_example ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 # Step to compile, link, and generate C headers for the PRU.
-add_custom_target(generate_pru_headers ALL
-    # Compile.
-    COMMAND ${CLPRU} -v3 -Ooff -I=${CMAKE_CURRENT_SOURCE_DIR}/include/
-        -I=${PRU_ICSS_INCLUDE_DIR} -I=${TI_PRU_INCLUDE_DIR}
-        --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off --display_error_number
-        --hardware_mac=on --endian=little --preproc_with_compile
-        --preproc_dependency=${PRU_MAIN_BASE_NAME}.d ${CMAKE_CURRENT_SOURCE_DIR}/src/${PRU_MAIN_BASE_NAME}.c
-
-    # Link.
-    COMMAND ${CLPRU} -v3 -Ooff --define=am3359 --define=pru0 --diag_warning=225 --diag_wrap=off
-        --display_error_number --hardware_mac=on --endian=little -z -mmain.map --heap_size=0x100
-        --stack_size=0x100 -i${TI_PRU_LIB_DIR} -i${TI_PRU_INCLUDE_DIR} --reread_libs
-        --display_error_number --warn_sections --diag_wrap=off --xml_link_info=${PRU_MAIN_BASE_NAME}.xml
-        --rom_model -o ${PRU_MAIN_BASE_NAME}.out ${PRU_MAIN_BASE_NAME}.obj
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_PRU.cmd -llibc.a
-
-    # Make target directory for generated headers.
-    COMMAND mkdir -p ${GENERATED_HEADERS_DIR}
-
-    # Convert OBJ to Text and Data binaries.
-    COMMAND ${HEXPRU} ${CMAKE_CURRENT_SOURCE_DIR}/src/AM335x_hexpru.cmd ${PRU_MAIN_BASE_NAME}.out
-            -o ${PRU_MAIN_BASE_NAME}_text.bin
-            -o ${PRU_MAIN_BASE_NAME}_data.bin
-
-    # Convert Text and Data binaries to C headers.
-    COMMAND ${XXD} -i ${PRU_MAIN_BASE_NAME}_text.bin >
-        ${GENERATED_HEADERS_DIR}/${PRU_MAIN_BASE_NAME}_text.h
-    COMMAND ${XXD} -i ${PRU_MAIN_BASE_NAME}_data.bin >
-        ${GENERATED_HEADERS_DIR}/${PRU_MAIN_BASE_NAME}_data.h
-
-    COMMENT "Generating PRU headers."
-    VERBATIM
-)
+TICGTPRU_generate_headers_macro(src/pru_main.c)
 
 ## Declare a C++ executable
 add_executable(pru_example src/main.c)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(pru_example generate_pru_headers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(pru_example TICGTPRU_generate_headers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(pru_example
