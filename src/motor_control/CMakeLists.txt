@@ -9,7 +9,14 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   sensor_msgs
+  pru_utils
 )
+
+# Add custom CMake modules.
+get_filename_component(ROOT_SRC_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${ROOT_SRC_DIR}/cmake/")
+
+find_package(TICGTPRU REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -116,6 +123,10 @@ catkin_package(
 # include_directories(include)
 include_directories(
   include
+
+  # Hacky, to pick up the 'generated_headers' include.
+  ${CMAKE_BINARY_DIR}
+
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -138,12 +149,20 @@ target_link_libraries(motor_control
   ${catkin_LIBRARIES}
 )
 
+# Step to compile, link, and generate C headers for the PRU.
+TICGTPRU_generate_headers_macro(src/pru_main.c)
+
 ## Declare a C++ executable
 add_executable(motor_control_node src/motor_control_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(motor_control_node gpio motor_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(motor_control_node
+  gpio motor_control
+  TICGTPRU_generate_headers
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(motor_control_node

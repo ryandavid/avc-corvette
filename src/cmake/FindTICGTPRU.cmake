@@ -83,7 +83,7 @@ macro(TICGTPRU_generate_headers_macro SOURCE_FILE)
             ${PRU_ICSS_INCLUDE_DIR}/AM335x_PRU.cmd -llibc.a
 
         # Make target directory for generated headers.
-        COMMAND mkdir -p ${GENERATED_HEADERS_DIR}
+        COMMAND mkdir -p ${CMAKE_BINARY_DIR}/generated_headers
 
         # Convert OBJ to Text and Data binaries.
         COMMAND ${TICGTPRU_HEXPRU} ${PRU_ICSS_INCLUDE_DIR}/AM335x_hexpru.cmd ${BASE_NAME}.out
@@ -92,9 +92,9 @@ macro(TICGTPRU_generate_headers_macro SOURCE_FILE)
 
         # Convert Text and Data binaries to C headers.
         COMMAND ${XXD} -i ${BASE_NAME}_text.bin >
-            ${GENERATED_HEADERS_DIR}/${BASE_NAME}_text.h
+            ${CMAKE_BINARY_DIR}/generated_headers/${BASE_NAME}_text.h
         COMMAND ${XXD} -i ${BASE_NAME}_data.bin >
-            ${GENERATED_HEADERS_DIR}/${BASE_NAME}_data.h
+            ${CMAKE_BINARY_DIR}/generated_headers/${BASE_NAME}_data.h
 
         COMMENT "Generating PRU headers."
         VERBATIM

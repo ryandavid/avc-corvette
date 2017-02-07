@@ -9,9 +9,18 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Joy.h"
 
+// Driver header file
+#include <pru_utils/prussdrv.h>
+#include <pru_utils/pruss_intc_mapping.h>
+
+#include <generated_headers/pru_main_text.h>
+#include <generated_headers/pru_main_data.h>
+
 #include "motor_control/motor_control_node.h"
 #include "motor_control/motor_control.h"
 
+
+#define PRU_NUM   0
 
 motor_control* ctrl;
 
@@ -65,6 +74,20 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "motor_controller_node");
   ros::NodeHandle node("~");
 
+  ROS_INFO("Initializing PRU.");
+  tpruss_intc_initdata pruss_intc_initdata = PRUSS_INTC_INITDATA;
+  prussdrv_init();
+
+  /* Open PRU Interrupt */
+  if (prussdrv_open(PRU_EVTOUT_0)) {
+      ROS_FATAL("Failed to open PRU.");
+      return -1;
+  }
+
+  /* Get the interrupt initialized */
+  prussdrv_pruintc_init(&pruss_intc_initdata);
+
+
   ROS_INFO("Setting up GPIO");
   ctrl = new motor_control();
 
@@ -93,9 +116,21 @@ int main(int argc, char **argv) {
   ROS_INFO("Subscribing to the joystick topic.");
   ros::Subscriber joyTopic = node.subscribe<sensor_msgs::Joy>("/joy0", 10, rxJoystickCallback);
 
+  ROS_INFO("Running PRU.");
+  prussdrv_exec_code(PRU_NUM, (unsigned int *)&pru_main_text_bin[0], pru_main_text_bin_len);
+
+  ROS_INFO("Spinning.");
   ros::spin();
 
   ROS_INFO("Cleaning up!");
   delete ctrl;
+
+  ROS_INFO("Waiting for PRU HALT command.");
+  prussdrv_pru_wait_event(PRU_EVTOUT_0);
+  ROS_INFO("Tearing down PRU.\r\n");
+  prussdrv_pru_clear_event (PRU_EVTOUT_0, PRU0_ARM_INTERRUPT);
+  prussdrv_pru_disable (PRU_NUM);
+  prussdrv_exit ();
+
   return 0;
 }

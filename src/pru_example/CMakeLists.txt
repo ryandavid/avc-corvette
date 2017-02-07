@@ -15,8 +15,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${ROOT_SRC_DIR}/cmake/")
 
 find_package(TICGTPRU REQUIRED)
 
-set(GENERATED_HEADERS_DIR "${CMAKE_BINARY_DIR}/generated_headers")
-
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
