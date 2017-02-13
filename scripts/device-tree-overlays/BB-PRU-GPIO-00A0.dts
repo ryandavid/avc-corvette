@@ -66,7 +66,7 @@
        pinctrl-single,pins = <  
          0x34 0x06    // B8_11, Output
          0x30 0x06    // B8_12, Output
-         0x3C 0x26    // B5_15, Input
+         0x3C 0x26    // B8_15, Input
          0x38 0x26    // B8_16, Input
        >;  
       };  
