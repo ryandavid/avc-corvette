@@ -13760,13 +13760,6 @@ Motor Controller</text>
 </net>
 <net name="VCC_SENSE_AD" class="0">
 <segment>
-<pinref part="U$1" gate="G$1" pin="AIN0"/>
-<wire x1="114.3" y1="71.12" x2="63.5" y2="71.12" width="0.1524" layer="91"/>
-<label x="63.5" y="71.12" size="1.778" layer="95"/>
-</segment>
-</net>
-<net name="VDD_SENSE_AD" class="0">
-<segment>
 <pinref part="U$1" gate="G$1" pin="AIN2"/>
 <wire x1="114.3" y1="73.66" x2="63.5" y2="73.66" width="0.1524" layer="91"/>
 <label x="63.5" y="73.66" size="1.778" layer="95"/>
@@ -13924,6 +13917,13 @@ Motor Controller</text>
 <pinref part="U$1" gate="G$1" pin="GPIO0_7"/>
 <wire x1="170.18" y1="68.58" x2="220.98" y2="68.58" width="0.1524" layer="91"/>
 <label x="220.98" y="68.58" size="1.778" layer="95" rot="MR0"/>
+</segment>
+</net>
+<net name="VDD_SENSE_AD" class="0">
+<segment>
+<pinref part="U$1" gate="G$1" pin="AIN0"/>
+<wire x1="114.3" y1="71.12" x2="63.5" y2="71.12" width="0.1524" layer="91"/>
+<label x="63.5" y="71.12" size="1.778" layer="95"/>
 </segment>
 </net>
 </nets>
@@ -14348,6 +14348,8 @@ Motor Controller</text>
 ~20V fully charged</text>
 <text x="50.8" y="78.74" size="1.778" layer="97">VCC at 20V produces 1.62V on VCC_SENSE</text>
 <text x="175.26" y="78.74" size="1.778" layer="97">VDD at 20V produces 1.62V on VDD_SENSE</text>
+<text x="129.54" y="147.32" size="1.778" layer="97">Pin 8 is the tab</text>
+<text x="248.92" y="144.78" size="1.778" layer="97">Pin 8 is the tab</text>
 </plain>
 <instances>
 <instance part="FRAME4" gate="G$1" x="0" y="0"/>
@@ -14491,11 +14493,7 @@ Motor Controller</text>
 <pinref part="U1" gate="G$1" pin="VBB@2"/>
 <pinref part="SUPPLY2" gate="G$1" pin="VCC"/>
 <wire x1="121.92" y1="147.32" x2="124.46" y2="147.32" width="0.1524" layer="91"/>
-<wire x1="124.46" y1="147.32" x2="124.46" y2="149.86" width="0.1524" layer="91"/>
-<pinref part="U1" gate="G$1" pin="VBB@1"/>
-<wire x1="124.46" y1="149.86" x2="124.46" y2="162.56" width="0.1524" layer="91"/>
-<wire x1="121.92" y1="149.86" x2="124.46" y2="149.86" width="0.1524" layer="91"/>
-<junction x="124.46" y="149.86"/>
+<wire x1="124.46" y1="147.32" x2="124.46" y2="162.56" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="R13" gate="G$1" pin="2"/>
@@ -14612,11 +14610,7 @@ Motor Controller</text>
 <segment>
 <pinref part="U2" gate="G$1" pin="VBB@2"/>
 <wire x1="243.84" y1="144.78" x2="246.38" y2="144.78" width="0.1524" layer="91"/>
-<wire x1="246.38" y1="144.78" x2="246.38" y2="147.32" width="0.1524" layer="91"/>
-<pinref part="U2" gate="G$1" pin="VBB@1"/>
-<wire x1="246.38" y1="147.32" x2="246.38" y2="157.48" width="0.1524" layer="91"/>
-<wire x1="243.84" y1="147.32" x2="246.38" y2="147.32" width="0.1524" layer="91"/>
-<junction x="246.38" y="147.32"/>
+<wire x1="246.38" y1="144.78" x2="246.38" y2="157.48" width="0.1524" layer="91"/>
 <pinref part="SUPPLY1" gate="G$1" pin="VDD"/>
 </segment>
 <segment>
@@ -14702,6 +14696,12 @@ Motor Controller</text>
 <wire x1="246.38" y1="132.08" x2="269.24" y2="132.08" width="0.1524" layer="91"/>
 <label x="269.24" y="132.08" size="1.778" layer="95" rot="MR0"/>
 <junction x="246.38" y="132.08"/>
+</segment>
+</net>
+<net name="N$1" class="0">
+<segment>
+<pinref part="U1" gate="G$1" pin="VBB@1"/>
+<wire x1="121.92" y1="149.86" x2="119.38" y2="149.86" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>
