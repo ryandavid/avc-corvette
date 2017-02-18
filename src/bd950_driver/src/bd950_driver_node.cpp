@@ -11,7 +11,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/NavSatStatus.h"
-#include "std_msgs/ByteMultiArray.h"
+#include "ntrip_client/ByteArray.h"
 #include "bd950_driver/NavSVInfoArray.h"
 #include "bd950_driver/NavDebug.h"
 
@@ -22,7 +22,7 @@ std::vector<uint8_t> ntripData;
 
 // Since this will only be called when 'spinOnce' is called, so we don't have to
 // worry about a race between this and when it gets written to the serial port.
-static void rxNtripCallback(const std_msgs::ByteMultiArray::ConstPtr& data) {
+static void rxNtripCallback(const ntrip_client::ByteArray::ConstPtr& data) {
 	ROS_DEBUG("Recieved %lu bytes from NTRIP!", data->data.size());
 
 	ntripData.insert(ntripData.end(), data->data.begin(), data->data.end());
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
   ros::Publisher velTopic = node.advertise<geometry_msgs::TwistStamped>("vel", 10);
   ros::Publisher svTopic = node.advertise<bd950_driver::NavSVInfoArray>("svInfo", 10);
   ros::Publisher debugTopic = node.advertise<bd950_driver::NavDebug>("debug", 10);
-  ros::Subscriber rtcmTopic = node.subscribe<std_msgs::ByteMultiArray>(ntrip_topic_name, 10, rxNtripCallback);
+  ros::Subscriber rtcmTopic = node.subscribe<ntrip_client::ByteArray>(ntrip_topic_name, 10, rxNtripCallback);
 
   ros::Rate rate(50);
 
