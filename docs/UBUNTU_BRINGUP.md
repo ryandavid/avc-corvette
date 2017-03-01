@@ -55,3 +55,9 @@ Now we can get and run the installer.
 
 install in `/opt/ti/ti-cgt-pru_2.1.4`
 
+## Install NVIDIA Driver
+`sudo add-apt-repository ppa:graphics-drivers/ppa`
+`sudo apt-get update`
+`sudo apt-get install nvidia-375`
+
+
