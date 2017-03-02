@@ -13282,10 +13282,10 @@ http://www.fairchildsemi.com/ds/LM/LM7805.pdf</description>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
 <part name="IC5" library="linear" deviceset="78*" device="TV" technology="6"/>
 <part name="+3V9" library="supply1" deviceset="+3V3" device=""/>
-<part name="C4" library="resistor" deviceset="C-US" device="C0603" value="10uF"/>
+<part name="C4" library="resistor" deviceset="C-US" device="C0805" value="10uF"/>
 <part name="GND15" library="supply1" deviceset="GND" device=""/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
-<part name="C5" library="resistor" deviceset="C-US" device="C0603" value="10uF"/>
+<part name="C5" library="resistor" deviceset="C-US" device="C0805" value="10uF"/>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
 <part name="R12" library="resistor" deviceset="R-US_" device="R0603" value="1k"/>
 <part name="U$1" library="adafruit" deviceset="MUSBB15130" device=""/>
@@ -13813,6 +13813,12 @@ Interface Board</text>
 <wire x1="88.9" y1="93.98" x2="88.9" y2="91.44" width="0.1524" layer="91"/>
 <pinref part="GND44" gate="1" pin="GND"/>
 <wire x1="83.82" y1="91.44" x2="83.82" y2="86.36" width="0.1524" layer="91"/>
+<junction x="76.2" y="91.44"/>
+<junction x="78.74" y="91.44"/>
+<junction x="81.28" y="91.44"/>
+<junction x="83.82" y="91.44"/>
+<junction x="86.36" y="91.44"/>
+<junction x="88.9" y="91.44"/>
 </segment>
 <segment>
 <pinref part="IC1" gate="CORE" pin="AGND"/>
@@ -13935,17 +13941,17 @@ Interface Board</text>
 <wire x1="154.94" y1="35.56" x2="170.18" y2="35.56" width="0.1524" layer="91"/>
 <label x="170.18" y="35.56" size="1.778" layer="95" rot="MR0"/>
 </segment>
+<segment>
+<pinref part="IC2" gate="G$1" pin="T4IN"/>
+<wire x1="190.5" y1="124.46" x2="175.26" y2="124.46" width="0.1524" layer="91"/>
+<label x="175.26" y="124.46" size="1.778" layer="95"/>
+</segment>
 </net>
 <net name="UART4_RXD" class="0">
 <segment>
 <pinref part="IC1" gate="D" pin="DB1/RXD"/>
 <wire x1="154.94" y1="33.02" x2="170.18" y2="33.02" width="0.1524" layer="91"/>
 <label x="170.18" y="33.02" size="1.778" layer="95" rot="MR0"/>
-</segment>
-<segment>
-<pinref part="IC2" gate="G$1" pin="T4IN"/>
-<wire x1="190.5" y1="124.46" x2="175.26" y2="124.46" width="0.1524" layer="91"/>
-<label x="175.26" y="124.46" size="1.778" layer="95"/>
 </segment>
 <segment>
 <pinref part="IC2" gate="G$1" pin="R4OUT"/>
@@ -13979,11 +13985,6 @@ Interface Board</text>
 <label x="129.54" y="35.56" size="1.778" layer="95" rot="MR0"/>
 </segment>
 <segment>
-<pinref part="IC1" gate="C" pin="DB1/RXD"/>
-<wire x1="114.3" y1="33.02" x2="129.54" y2="33.02" width="0.1524" layer="91"/>
-<label x="129.54" y="33.02" size="1.778" layer="95" rot="MR0"/>
-</segment>
-<segment>
 <pinref part="IC2" gate="G$1" pin="T3IN"/>
 <wire x1="190.5" y1="127" x2="175.26" y2="127" width="0.1524" layer="91"/>
 <label x="175.26" y="127" size="1.778" layer="95"/>
@@ -13994,6 +13995,11 @@ Interface Board</text>
 <pinref part="IC2" gate="G$1" pin="R3OUT"/>
 <wire x1="190.5" y1="114.3" x2="175.26" y2="114.3" width="0.1524" layer="91"/>
 <label x="175.26" y="114.3" size="1.778" layer="95"/>
+</segment>
+<segment>
+<pinref part="IC1" gate="C" pin="DB1/RXD"/>
+<wire x1="114.3" y1="33.02" x2="129.54" y2="33.02" width="0.1524" layer="91"/>
+<label x="129.54" y="33.02" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="PORT1_RXD" class="0">
@@ -14225,16 +14231,6 @@ Interface Board</text>
 <wire x1="48.26" y1="137.16" x2="50.8" y2="137.16" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="N$2" class="0">
-<segment>
-<pinref part="C5" gate="G$1" pin="1"/>
-<wire x1="193.04" y1="200.66" x2="193.04" y2="193.04" width="0.1524" layer="91"/>
-<pinref part="IC5" gate="A1" pin="VI"/>
-<wire x1="193.04" y1="193.04" x2="193.04" y2="190.5" width="0.1524" layer="91"/>
-<wire x1="200.66" y1="193.04" x2="193.04" y2="193.04" width="0.1524" layer="91"/>
-<junction x="193.04" y="193.04"/>
-</segment>
-</net>
 <net name="USB_D-" class="0">
 <segment>
 <pinref part="IC1" gate="CORE" pin="USBDM"/>
@@ -14320,23 +14316,46 @@ Interface Board</text>
 <label x="238.76" y="114.3" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
+<net name="VDD" class="0">
+<segment>
+<pinref part="C5" gate="G$1" pin="1"/>
+<wire x1="193.04" y1="200.66" x2="193.04" y2="193.04" width="0.1524" layer="91"/>
+<pinref part="IC5" gate="A1" pin="VI"/>
+<wire x1="193.04" y1="193.04" x2="193.04" y2="190.5" width="0.1524" layer="91"/>
+<wire x1="200.66" y1="193.04" x2="193.04" y2="193.04" width="0.1524" layer="91"/>
+<junction x="193.04" y="193.04"/>
+<pinref part="VDD4" gate="G$1" pin="VDD"/>
+</segment>
+</net>
 </nets>
 </sheet>
 </sheets>
 <errors>
-<approved hash="104,3,114.3,116.84,U$1,VDD_3V3EXP,+3V3,,,"/>
-<approved hash="104,3,170.18,116.84,U$1,VDD_3V3EXP,+3V3,,,"/>
-<approved hash="104,3,114.3,114.3,U$1,VDD_5V,+5V,,,"/>
-<approved hash="104,3,170.18,114.3,U$1,VDD_5V,+5V,,,"/>
-<approved hash="204,3,114.3,111.76,U$1,SYS_5V,,,,"/>
-<approved hash="104,3,114.3,71.12,U$1,AIN0,VCC_SENSE_AD,,,"/>
-<approved hash="202,3,114.3,68.58,U$1,CLKOUT2,,,,"/>
-<approved hash="108,2,152.4,165.1,+5V,,,,,"/>
-<approved hash="108,3,180.34,119.38,GND,,,,,"/>
+<approved hash="104,3,66.04,93.98,IC1CORE,AGND,GND,,,"/>
+<approved hash="104,3,91.44,170.18,IC1CORE,VCCIO,+3V3,,,"/>
+<approved hash="104,3,88.9,170.18,IC1CORE,VCCIO,+3V3,,,"/>
+<approved hash="104,3,68.58,170.18,IC1CORE,VCORE,N$10,,,"/>
+<approved hash="104,3,66.04,170.18,IC1CORE,VCORE,N$10,,,"/>
+<approved hash="104,3,76.2,170.18,IC1CORE,VPLL,+3V3,,,"/>
+<approved hash="104,3,93.98,170.18,IC1CORE,VCCIO,+3V3,,,"/>
+<approved hash="104,3,96.52,170.18,IC1CORE,VCCIO,+3V3,,,"/>
+<approved hash="104,3,63.5,170.18,IC1CORE,VCORE,N$10,,,"/>
+<approved hash="104,3,81.28,170.18,IC1CORE,VPHY,+3V3,,,"/>
+<approved hash="104,3,251.46,154.94,IC2P,VCC,+3V3,,,"/>
+<approved hash="104,2,172.72,53.34,IC3P,VSS,GND,,,"/>
+<approved hash="104,2,172.72,68.58,IC3P,VDD,+3V3,,,"/>
+<approved hash="104,3,177.8,73.66,IC4,VCC,+3V3,,,"/>
+<approved hash="104,2,60.96,187.96,U$1,VBUS,VDD,,,"/>
+<approved hash="108,3,78.74,91.44,GND,,,,,"/>
+<approved hash="108,3,76.2,91.44,GND,,,,,"/>
+<approved hash="108,3,81.28,91.44,GND,,,,,"/>
+<approved hash="108,3,83.82,91.44,GND,,,,,"/>
+<approved hash="108,3,86.36,91.44,GND,,,,,"/>
+<approved hash="108,3,88.9,91.44,GND,,,,,"/>
 <approved hash="113,1,139.596,107.846,FRAME1,,,,,"/>
 <approved hash="113,3,139.596,107.846,FRAME2,,,,,"/>
 <approved hash="113,2,139.596,107.846,FRAME5,,,,,"/>
-<approved hash="113,2,227.33,165.422,LED3,,,,,"/>
+<approved hash="113,3,116.84,105.939,Q1,,,,,"/>
 </errors>
 </schematic>
 </drawing>
