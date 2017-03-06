@@ -14,10 +14,12 @@
 #else
 #include "sys/types.h"
 #include "sys/sysinfo.h"
+#include <stdlib.h>
 #endif // __APPLE__
 
 #include "system_stats/system_stats.h"
 
+#ifdef __APPLE__
 std::string get_hostname() {
     size_t hostname_len = 128;
     char hostname[hostname_len];
@@ -41,7 +43,6 @@ void get_sys_load(double* load_1min, double* load_5min, double* load_15min) {
     *load_15min = (double)loadinfo.ldavg[2] / loadinfo.fscale;
 }
 
-#ifdef __APPLE__
 int64_t get_total_mem() {
     int64_t total_mem;
     int mib[2];
@@ -77,6 +78,29 @@ int64_t get_mem_used() {
 }
 
 #else
+std::string get_hostname() {
+    size_t length = 128;
+    char scratch[length];
+
+    gethostname(&scratch[0], length);
+    return std::string(scratch);
+}
+
+void get_sys_load(double* load_1min, double* load_5min, double* load_15min) {
+    int num_elements = 3;
+    double averages[3];
+
+    if (getloadavg(&averages[0], num_elements) != -1) {
+        *load_1min = averages[0];
+        *load_5min = averages[1];
+        *load_15min = averages[2];
+    } else {
+        *load_1min = 0;
+        *load_5min = 0;
+        *load_15min = 0;
+    }
+}
+
 // http://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
 int64_t get_total_mem() {
     struct sysinfo memInfo;
