@@ -44,7 +44,7 @@ Edit `/etc/default/grub`:
 
 And then run `sudo update-grub`
 
-## Installing TI PRU C Compilier
+## Installing TI PRU C Compiler
 32-bit libraries may need to be installed before the installer can run:
 `sudo apt-get install libc6:i386`
 
@@ -60,4 +60,10 @@ install in `/opt/ti/ti-cgt-pru_2.1.4`
 `sudo apt-get update`
 `sudo apt-get install nvidia-375`
 
+# Jenkins only info
+## Cross compiling for BBB
+`sudo apt-get install lxc`
+`sudo lxc-create -t download -n jenkins-armhf-slave-0`
+And specify `ubuntu`, `trusty`, `armhf`
 
+`sudo lxc-start -n jenkins-armhf-slave-0`
