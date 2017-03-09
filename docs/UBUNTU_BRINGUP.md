@@ -51,9 +51,7 @@ And then run `sudo update-grub`
 Now we can get and run the installer.
 `wget http://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/2.1.4/ti_cgt_pru_2.1.4_linux_installer_x86.bin`
 `chmod +x ti_cgt_pru_2.1.4_linux_installer_x86.bin`
-`sudo ./ti_cgt_pru_2.1.4_linux_installer_x86.bin`
-
-install in `/opt/ti/ti-cgt-pru_2.1.4`
+`sudo ./ti_cgt_pru_2.1.4_linux_installer_x86.bin --prefix /opt/ti --mode text`
 
 ## Install NVIDIA Driver
 `sudo add-apt-repository ppa:graphics-drivers/ppa`
