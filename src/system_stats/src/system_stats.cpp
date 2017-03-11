@@ -17,6 +17,13 @@
 #include <stdlib.h>
 #endif // __APPLE__
 
+#ifdef WITH_CUDA
+extern "C"
+{
+    #include <nvml.h>
+}
+#endif
+
 #include "system_stats/system_stats.h"
 
 #ifdef __APPLE__

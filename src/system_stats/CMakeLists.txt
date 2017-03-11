@@ -10,6 +10,16 @@ find_package(catkin REQUIRED COMPONENTS
     message_generation
 )
 
+get_filename_component(ROOT_SRC_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${ROOT_SRC_DIR}/cmake/")
+
+find_package(CUDA)
+if(CUDA_VERSION)
+    message("Found CUDA version ${CUDA_VERSION}")
+    set(NVML_LIB "nvidia-ml")
+    add_definitions(-DWITH_CUDA)
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -115,6 +125,7 @@ catkin_package(
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -136,6 +147,7 @@ add_dependencies(system_stats_node system_stats ${${PROJECT_NAME}_EXPORTED_TARGE
 target_link_libraries(system_stats_node
     ${catkin_LIBRARIES}
     system_stats
+    ${NVML_LIB}
 )
 
 #############
